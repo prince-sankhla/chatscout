@@ -92,7 +92,7 @@ create table public.submissions (
   community_name text not null,
   invite_url text not null check (invite_url ~ '^https?://'),
   description text not null,
-  category_name text,
+  category text,
   language text,
   region text,
   approximate_member_count integer check (
@@ -189,7 +189,7 @@ revoke all on table public.categories, public.communities, public.community_cate
 
 grant select on public.categories, public.communities, public.community_categories
   to anon, authenticated;
-grant insert (community_name, invite_url, description, category_name, language, region,
+grant insert (community_name, invite_url, description, category, language, region,
   approximate_member_count, submitter_contact, submitter_platform_identifier)
   on public.submissions to anon, authenticated;
 grant insert (community_id, report_type, description) on public.reports to anon, authenticated;

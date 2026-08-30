@@ -43,7 +43,7 @@ export async function submitCommunity(formData: FormData) {
     community_name: communityName,
     invite_url: inviteUrl,
     description,
-    category_name: categoryName,
+    category: categoryName,
     language,
     region,
     approximate_member_count: memberCount,

@@ -50,13 +50,13 @@ export async function approveSubmission(formData: FormData) {
     .eq("id", submissionId)
     .eq("status", "pending")
     .maybeSingle();
-  if (submissionError || !submission || !submission.category_name) redirect("/admin?status=failed");
+  if (submissionError || !submission || !submission.category) redirect("/admin?status=failed");
 
-  const slug = categorySlug(submission.category_name);
+  const slug = categorySlug(submission.category);
   if (!slug) redirect("/admin?status=failed");
   const { data: category, error: categoryError } = await supabase
     .from("categories")
-    .upsert({ name: submission.category_name, slug, is_active: true }, { onConflict: "slug" })
+    .upsert({ name: submission.category, slug, is_active: true }, { onConflict: "slug" })
     .select("id")
     .single();
   if (categoryError) redirect("/admin?status=failed");
