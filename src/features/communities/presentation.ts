@@ -1,5 +1,6 @@
 import type { Community } from "@/types/community";
 import type { CommunityRow } from "@/types/database";
+import { getPublishedCommunityImageUrl } from "@/lib/supabase/community-images";
 
 const accents: Community["accent"][] = ["violet", "blue", "pink", "orange", "teal"];
 
@@ -22,7 +23,7 @@ function membersLabel(memberCount: number | null) {
 }
 
 /** Maps stored listing data into the existing, presentation-only community card shape. */
-export function toCommunityPresentation(community: CommunityRow): Community {
+export async function toCommunityPresentation(community: CommunityRow): Promise<Community> {
   const tags = ["Instagram", community.language, community.region].filter((tag): tag is string => Boolean(tag));
   return {
     slug: community.slug,
@@ -35,5 +36,6 @@ export function toCommunityPresentation(community: CommunityRow): Community {
     initials: initialsForName(community.name),
     tags,
     isDemo: false,
+    imageUrl: await getPublishedCommunityImageUrl(community.image_path),
   };
 }

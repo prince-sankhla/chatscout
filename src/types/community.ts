@@ -9,4 +9,5 @@ export type Community = {
   initials: string;
   tags: string[];
   isDemo: boolean;
+  imageUrl?: string | null;
 };

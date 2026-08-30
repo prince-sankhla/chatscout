@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { requireAdminUser } from "@/lib/supabase/auth";
+import { removeCommunityImage } from "@/lib/supabase/community-images";
 
 function categorySlug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
@@ -29,12 +30,15 @@ export async function rejectSubmission(formData: FormData) {
   const submissionId = submissionIdValue(formData);
   if (!submissionId) redirect("/admin?status=invalid");
   const supabase = createAdminSupabaseClient();
-  const { error } = await supabase
+  const { data: submission, error } = await supabase
     .from("submissions")
     .update({ status: "rejected", review_notes: notesValue(formData), reviewed_at: new Date().toISOString(), reviewed_by: user.id })
     .eq("id", submissionId)
-    .eq("status", "pending");
-  if (error) redirect("/admin?status=failed");
+    .eq("status", "pending")
+    .select("image_path")
+    .maybeSingle();
+  if (error || !submission) redirect("/admin?status=failed");
+  await removeCommunityImage(submission.image_path);
   revalidatePath("/admin");
   redirect("/admin?status=rejected");
 }
@@ -63,7 +67,7 @@ export async function approveSubmission(formData: FormData) {
 
   const { data: existingCommunity, error: existingError } = await supabase
     .from("communities")
-    .select("id, slug")
+    .select("id, slug, image_path")
     .eq("invite_url", submission.invite_url)
     .limit(1)
     .maybeSingle();
@@ -76,6 +80,7 @@ export async function approveSubmission(formData: FormData) {
     language: submission.language,
     region: submission.region,
     member_count: submission.approximate_member_count,
+    image_path: submission.image_path ?? existingCommunity?.image_path ?? null,
     status: "draft" as const,
   };
   const { data: community, error: communityError } = existingCommunity

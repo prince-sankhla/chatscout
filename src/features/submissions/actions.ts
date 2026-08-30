@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createServerAuthClient } from "@/lib/supabase/auth";
+import { isSubmissionImagePath, removeCommunityImage, storedSubmissionImageExists } from "@/lib/supabase/community-images";
 
 function textValue(formData: FormData, field: string, maxLength: number, required = false) {
   const value = formData.get(field);
@@ -34,8 +35,12 @@ export async function submitCommunity(formData: FormData) {
   const contact = textValue(formData, "contact", 200);
   const memberCountValue = textValue(formData, "memberCount", 12);
   const memberCount = memberCountValue ? Number(memberCountValue) : null;
+  const imagePath = textValue(formData, "imagePath", 200);
 
   if (!communityName || !inviteUrl || !description || !categoryName || !isInstagramInviteUrl(inviteUrl) || (memberCount !== null && (!Number.isInteger(memberCount) || memberCount < 0))) {
+    redirect("/submit?error=invalid");
+  }
+  if (imagePath && (!isSubmissionImagePath(imagePath, user.id) || !(await storedSubmissionImageExists(imagePath)))) {
     redirect("/submit?error=invalid");
   }
 
@@ -49,7 +54,11 @@ export async function submitCommunity(formData: FormData) {
     approximate_member_count: memberCount,
     submitter_contact: contact,
     submitter_user_id: user.id,
+    image_path: imagePath,
   });
-  if (error) redirect("/submit?error=unavailable");
+  if (error) {
+    await removeCommunityImage(imagePath);
+    redirect("/submit?error=unavailable");
+  }
   redirect("/submit?success=1");
 }
