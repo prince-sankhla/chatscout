@@ -1,7 +1,8 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { getSupabasePublicConfig, getSupabaseSecretKey } from "./config";
+import { getSupabasePublicConfig } from "./config";
+import { getSupabaseSecretKey } from "./server-config";
 
 /** Trusted server-only client. Never import this module into a component. */
 export function createAdminSupabaseClient() {
