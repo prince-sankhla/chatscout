@@ -1,0 +1,14 @@
+{
+  "dataset": {
+    "name": "ChatScout development fixtures",
+    "environment": "development",
+    "notice": "Synthetic test data only. These are not real communities and are never for production discovery."
+  },
+  "categories": [
+    { "name": "Test Coding", "slug": "test-coding", "description": "Synthetic development category", "sortOrder": 900 },
+    { "name": "Test Study", "slug": "test-study", "description": "Synthetic development category", "sortOrder": 901 }
+  ],
+  "communities": [
+    { "name": "ChatScout Test Coding Circle", "description": "Synthetic development community for automated ChatScout testing. Not a real community.", "categorySlug": "test-coding", "language": "English", "region": "Test environment", "memberCount": 120, "inviteUrl": "https://www.instagram.com/" }
+  ]
+}

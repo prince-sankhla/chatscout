@@ -1,0 +1,12 @@
+export type Community = {
+  slug: string;
+  name: string;
+  category: string;
+  location: string;
+  membersLabel: string;
+  description: string;
+  accent: "violet" | "blue" | "pink" | "orange" | "teal";
+  initials: string;
+  tags: string[];
+  isDemo: boolean;
+};
