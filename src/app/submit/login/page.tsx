@@ -11,5 +11,5 @@ export default async function SubmitLoginPage({ searchParams }: SubmitLoginPageP
   if (user) redirect("/submit");
   const { error } = await searchParams;
 
-  return <PageShell><main className="page-content form-page"><section className="form-panel submit-login-panel"><p className="eyebrow">LIST YOUR COMMUNITY</p><h1>Continue to submit your community.</h1><p className="form-intro">Sign in with Google so we can securely associate your submission with you and keep you updated during review.</p><GoogleSignInButton />{error && <p className="form-message error">Google sign-in was not completed. Please try again.</p>}</section></main></PageShell>;
+  return <PageShell><main className="page-content form-page"><section className="form-panel submit-login-panel"><p className="eyebrow">LIST YOUR COMMUNITY</p><h1>Continue to submit your community.</h1><p className="form-intro">Sign in with Google so we can securely associate your submission with you and keep you updated during review.</p><GoogleSignInButton />{error && <p className="form-message error">{error === "auth" ? "Your session expired. Continue with Google to submit your community." : "Google sign-in was not completed. Please try again."}</p>}</section></main></PageShell>;
 }

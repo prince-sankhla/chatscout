@@ -24,7 +24,7 @@ function isInstagramInviteUrl(value: string) {
 export async function submitCommunity(formData: FormData) {
   const supabase = await createServerAuthClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/submit/login");
+  if (!user) redirect("/submit/login?error=auth");
 
   const communityName = textValue(formData, "communityName", 120, true);
   const inviteUrl = textValue(formData, "inviteUrl", 1_000, true);
@@ -37,14 +37,14 @@ export async function submitCommunity(formData: FormData) {
   const memberCount = memberCountValue ? Number(memberCountValue) : null;
   const imagePath = textValue(formData, "imagePath", 200);
 
-  if (!communityName || !inviteUrl || !description || !categoryName || !isInstagramInviteUrl(inviteUrl) || (memberCount !== null && (!Number.isInteger(memberCount) || memberCount < 0))) {
-    redirect("/submit?error=invalid");
-  }
+  if (!communityName || !inviteUrl || !description || !categoryName) redirect("/submit?error=required");
+  if (!isInstagramInviteUrl(inviteUrl)) redirect("/submit?error=url");
+  if (memberCount !== null && (!Number.isInteger(memberCount) || memberCount < 0)) redirect("/submit?error=members");
   if (imagePath && (!isSubmissionImagePath(imagePath, user.id) || !(await storedSubmissionImageExists(imagePath)))) {
-    redirect("/submit?error=invalid");
+    redirect("/submit?error=image");
   }
 
-  const { error } = await supabase.from("submissions").insert({
+  const submission = {
     community_name: communityName,
     invite_url: inviteUrl,
     description,
@@ -54,11 +54,12 @@ export async function submitCommunity(formData: FormData) {
     approximate_member_count: memberCount,
     submitter_contact: contact,
     submitter_user_id: user.id,
-    image_path: imagePath,
-  });
+    ...(imagePath ? { image_path: imagePath } : {}),
+  };
+  const { error } = await supabase.from("submissions").insert(submission);
   if (error) {
     await removeCommunityImage(imagePath);
-    redirect("/submit?error=unavailable");
+    redirect("/submit?error=database");
   }
   redirect("/submit?success=1");
 }
