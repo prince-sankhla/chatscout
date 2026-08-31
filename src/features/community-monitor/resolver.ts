@@ -5,7 +5,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 15_000;
 
 export type CommunityPreview = {
   name: string | null;
@@ -67,41 +67,61 @@ function isLikelyGenericInstagramAsset(value: string) {
   return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(value);
 }
 
-function extractImage(html: string, baseUrl: string) {
-  const candidates: string[] = [];
+function isLikelyGenericImageAlt(value: string) {
+  return /(?:instagram(?: logo| icon)?|app icon|favicon|meta logo|threads logo)/i.test(value);
+}
 
-  for (const match of html.matchAll(/<(?:img|source)[^>]+(?:src|data-src|data-original|poster)=["']([^"']+)["'][^>]*>/gi)) {
-    candidates.push(match[1]);
+function extractImage(html: string, baseUrl: string) {
+  const candidates: Array<{ url: string; alt: string }> = [];
+
+  for (const match of html.matchAll(/<(?:img|source)\b([^>]+)>/gi)) {
+    const attrs = match[1];
+    const src = attrs.match(/(?:src|data-src|data-original|poster)=["']([^"']+)["']/i)?.[1];
+    if (!src) continue;
+    const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] ?? "";
+    if (isLikelyGenericImageAlt(alt)) continue;
+    candidates.push({ url: src, alt });
   }
 
   for (const match of html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)) {
-    candidates.push(...match[1].split(",").map((part) => part.trim().split(/\s+/)[0]));
+    for (const part of match[1].split(",")) {
+      const src = part.trim().split(/\s+/)[0];
+      if (src) candidates.push({ url: src, alt: "" });
+    }
   }
 
-  for (const match of html.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)) {
-    candidates.push(match[1]);
+  for (const match of html.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi)) {
+    if (!isLikelyGenericImageAlt(match[1])) candidates.push({ url: match[2], alt: match[1] });
   }
 
   const decoded = decodeHtml(html);
   for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\])]+/gi)) {
     const url = match[0].replace(/\\+$/g, "");
-    if (looksLikeImageUrl(url)) candidates.push(url);
+    if (looksLikeImageUrl(url)) candidates.push({ url, alt: "" });
   }
 
   candidates.push(
     ...[meta(html, "og:image"), meta(html, "og:image:url"), meta(html, "twitter:image"), meta(html, "twitter:image:src")]
-      .filter((value): value is string => Boolean(value)),
+      .filter((value): value is string => Boolean(value))
+      .map((url) => ({ url, alt: "" })),
   );
 
-  const absoluteCandidates = [...new Set(
+  const absoluteCandidates = [...new Map(
     candidates
-      .map((value) => absoluteUrl(value, baseUrl))
-      .filter((value): value is string => Boolean(value)),
+      .map(({ url, alt }) => [absoluteUrl(url, baseUrl), alt] as const)
+      .filter(([url]): url is string => Boolean(url)),
   )];
 
-  return absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && looksLikeImageUrl(url))
-    ?? absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && /(?:scontent|fbcdn|cdninstagram)/i.test(url))
-    ?? null;
+  const nonGeneric = absoluteCandidates
+    .filter(([url, alt]) => !isLikelyGenericInstagramAsset(url) && !isLikelyGenericImageAlt(alt) && looksLikeImageUrl(url));
+  if (nonGeneric.length) return nonGeneric[0][0];
+
+  const nonGenericCdn = absoluteCandidates.find(([url, alt]) =>
+    !isLikelyGenericInstagramAsset(url)
+      && !isLikelyGenericImageAlt(alt)
+      && /(?:scontent|fbcdn|cdninstagram)/i.test(url),
+  );
+  return nonGenericCdn?.[0] ?? null;
 }
 
 function visibleText(html: string) {
@@ -147,7 +167,7 @@ function cleanName(value: string) {
   if (/^(instagram|group chat|use the instagram app)/i.test(name)) return null;
   if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
   const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
-  if (/^(directgroup|directgrouplink|direct group link)$/.test(normalized)) return null;
+  if (/^(directgroup|directgrouplink|direct group link|community name)$/.test(normalized)) return null;
   return name
     .replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "")
     .replace(/^\s*[•·|:-]\s*/, "")
@@ -195,14 +215,23 @@ async function fetchHtml(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
+    const isJina = url.startsWith("https://r.jina.ai/");
     return await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: isJina ? "text/markdown,text/plain,text/html;q=0.9,*/*;q=0.8" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         Referer: "https://www.instagram.com/",
+        ...(isJina
+          ? {
+              "x-engine": "browser",
+              "x-no-cache": "true",
+              "x-retain-images": "true",
+              "x-with-generated-alt": "true",
+            }
+          : {}),
       },
       cache: "no-store",
     });
