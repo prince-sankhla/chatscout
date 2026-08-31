@@ -3,11 +3,14 @@ import crypto from "node:crypto";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendAdminNotification } from "@/lib/notifications/email";
 import { resolveCommunityPreview, storeRemoteCommunityImage } from "@/features/community-monitor/resolver";
+import type { AdminAuditAction } from "@/types/database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FAILURE_THRESHOLD = 3;
+
+type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -22,7 +25,7 @@ async function ownerEmail(userId: string | null) {
   return data.user?.email ?? null;
 }
 
-async function audit(communityId: string, action: "health_updated" | "auto_archived", note: string) {
+async function audit(communityId: string, action: HealthAuditAction, note: string) {
   const adminUserId = process.env.ADMIN_USER_ID?.trim();
   if (!adminUserId || !/^[0-9a-f-]{36}$/i.test(adminUserId)) return;
   await createAdminSupabaseClient().from("admin_audit_log").insert({
@@ -59,13 +62,15 @@ export async function GET(request: Request) {
         health_failure_count: failures,
         last_health_error: "Instagram invite could not be verified publicly.",
         verification_status: shouldArchive ? "broken" : community.verification_status,
-        ...(shouldArchive ? { status: "archived", archived_at: new Date().toISOString(), archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}),
+        ...(shouldArchive ? { status: "archived" as const, archived_at: new Date().toISOString(), archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}),
       };
       await admin.from("communities").update(update).eq("id", community.id);
       await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
       if (shouldArchive) {
         results.archived += 1;
         await sendAdminNotification({ type: "health_alert", to: await ownerEmail(community.owner_user_id), communityName: community.name, note: "The Instagram invite could not be verified after three consecutive checks, so the listing was archived automatically." });
+        const adminEmail = process.env.ADMIN_EMAIL?.trim();
+        if (adminEmail) await sendAdminNotification({ type: "health_alert", to: adminEmail, communityName: community.name, note: `The listing was auto-archived after ${FAILURE_THRESHOLD} consecutive failed public invite checks.`, link: process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/admin` : null });
       }
       continue;
     }
@@ -98,7 +103,7 @@ export async function GET(request: Request) {
             }
           }
         }
-      } catch { /* keep the successful text/member health result */ }
+      } catch { /* preserve a successful text/member health result */ }
     }
 
     await admin.from("communities").update(update).eq("id", community.id);
