@@ -1,5 +1,5 @@
 {
   "crons": [
-    { "path": "/api/cron/community-health", "schedule": "30 0,12 * * *" }
+    { "path": "/api/cron/community-health", "schedule": "30 0 * * *" }
   ]
 }
