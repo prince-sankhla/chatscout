@@ -1,5 +1,4 @@
 import "server-only";
-
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getPublishedCommunityImageUrl } from "@/lib/supabase/community-images";
 import type { CommunityRow, Database } from "@/types/database";
@@ -17,7 +16,9 @@ export type AdminCommunityItem = CommunityRow & {
   imageUrl: string | null;
   ownerEmail: string | null;
   sourceSubmissionCreatedAt: string | null;
+  viewsRecent: number;
   joinClicksRecent: number;
+  ctrRecent: number;
 };
 
 export type AdminDashboardData = {
@@ -27,6 +28,7 @@ export type AdminDashboardData = {
     archivedCommunities: number;
     rejectedSubmissions: number;
     totalCommunities: number;
+    recentViews: number;
     recentJoinClicks: number;
   };
   pending: AdminSubmissionItem[];
@@ -56,14 +58,8 @@ async function userEmailById(userId: string | null) {
 
 async function withSubmissionAdminFields(submissions: SubmissionRow[], query: string) {
   const filtered = submissions.filter((submission) => includesQuery([
-    submission.community_name,
-    submission.category,
-    submission.description,
-    submission.region,
-    submission.language,
-    submission.invite_url,
+    submission.community_name, submission.category, submission.description, submission.region, submission.language, submission.invite_url,
   ], query));
-
   return Promise.all(filtered.map(async (submission) => ({
     ...submission,
     imageUrl: await getPublishedCommunityImageUrl(submission.image_path),
@@ -74,10 +70,7 @@ async function withSubmissionAdminFields(submissions: SubmissionRow[], query: st
 async function categoryMapForCommunities(communityIds: string[]) {
   if (!communityIds.length) return new Map<string, string>();
   const supabase = createAdminSupabaseClient();
-  const { data: links } = await supabase
-    .from("community_categories")
-    .select("community_id, category_id")
-    .in("community_id", communityIds);
+  const { data: links } = await supabase.from("community_categories").select("community_id, category_id").in("community_id", communityIds);
   const categoryIds = [...new Set((links ?? []).map((link) => link.category_id))];
   if (!categoryIds.length) return new Map<string, string>();
   const { data: categories } = await supabase.from("categories").select("id, name").in("id", categoryIds);
@@ -89,56 +82,45 @@ async function sourceSubmissionMeta(communities: CommunityRow[]) {
   const sourceIds = [...new Set(communities.map((community) => community.source_submission_id).filter((id): id is string => Boolean(id)))];
   if (!sourceIds.length) return new Map<string, { createdAt: string | null; email: string | null }>();
   const supabase = createAdminSupabaseClient();
-  const { data: submissions } = await supabase
-    .from("submissions")
-    .select("id, created_at, submitter_user_id")
-    .in("id", sourceIds);
-  const entries = await Promise.all((submissions ?? []).map(async (submission) => [
-    submission.id,
-    { createdAt: submission.created_at, email: await userEmailById(submission.submitter_user_id) },
-  ] as const));
+  const { data: submissions } = await supabase.from("submissions").select("id, created_at, submitter_user_id").in("id", sourceIds);
+  const entries = await Promise.all((submissions ?? []).map(async (submission) => [submission.id, { createdAt: submission.created_at, email: await userEmailById(submission.submitter_user_id) }] as const));
   return new Map(entries);
 }
 
-async function joinClickCounts(communityIds: string[]) {
-  if (!communityIds.length) return new Map<string, number>();
+async function analyticsCounts(communityIds: string[]) {
+  if (!communityIds.length) return new Map<string, { views: number; joins: number }>();
   const since = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const supabase = createAdminSupabaseClient();
-  const { data } = await supabase
-    .from("analytics_events")
-    .select("community_id")
-    .eq("event_name", "join_click")
-    .gte("occurred_at", since)
-    .in("community_id", communityIds)
-    .limit(1_000);
-  const counts = new Map<string, number>();
+  const { data } = await supabase.from("analytics_events").select("community_id, event_name").gte("occurred_at", since).in("community_id", communityIds).in("event_name", ["community_view", "join_click"]).limit(20_000);
+  const counts = new Map<string, { views: number; joins: number }>();
   for (const event of data ?? []) {
-    if (event.community_id) counts.set(event.community_id, (counts.get(event.community_id) ?? 0) + 1);
+    if (!event.community_id) continue;
+    const current = counts.get(event.community_id) ?? { views: 0, joins: 0 };
+    if (event.event_name === "community_view") current.views += 1;
+    if (event.event_name === "join_click") current.joins += 1;
+    counts.set(event.community_id, current);
   }
   return counts;
 }
 
 async function withCommunityAdminFields(communities: CommunityRow[], query: string) {
   const filtered = communities.filter((community) => includesQuery([
-    community.name,
-    community.description,
-    community.region,
-    community.language,
-    community.platform,
-    community.verification_status,
+    community.name, community.description, community.region, community.language, community.platform, community.verification_status,
   ], query));
   const ids = filtered.map((community) => community.id);
-  const [categories, sources, joins] = await Promise.all([categoryMapForCommunities(ids), sourceSubmissionMeta(filtered), joinClickCounts(ids)]);
-
+  const [categories, sources, analytics] = await Promise.all([categoryMapForCommunities(ids), sourceSubmissionMeta(filtered), analyticsCounts(ids)]);
   return Promise.all(filtered.map(async (community) => {
     const source = community.source_submission_id ? sources.get(community.source_submission_id) : null;
+    const stats = analytics.get(community.id) ?? { views: 0, joins: 0 };
     return {
       ...community,
       category: categories.get(community.id) ?? null,
       imageUrl: await getPublishedCommunityImageUrl(community.image_path),
       ownerEmail: await userEmailById(community.owner_user_id) ?? source?.email ?? null,
       sourceSubmissionCreatedAt: source?.createdAt ?? null,
-      joinClicksRecent: joins.get(community.id) ?? 0,
+      viewsRecent: stats.views,
+      joinClicksRecent: stats.joins,
+      ctrRecent: stats.views ? Math.round((stats.joins / stats.views) * 1000) / 10 : 0,
     };
   }));
 }
@@ -146,25 +128,13 @@ async function withCommunityAdminFields(communities: CommunityRow[], query: stri
 export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminDashboardData | null> {
   const supabase = createAdminSupabaseClient();
   const since = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const [
-    totalCommunities,
-    publishedCommunities,
-    archivedCommunities,
-    pendingSubmissions,
-    rejectedSubmissions,
-    recentJoinClicks,
-    pending,
-    rejected,
-    published,
-    archived,
-    unpublished,
-    auditLog,
-  ] = await Promise.all([
+  const [totalCommunities, publishedCommunities, archivedCommunities, pendingSubmissions, rejectedSubmissions, recentViews, recentJoinClicks, pending, rejected, published, archived, unpublished, auditLog] = await Promise.all([
     supabase.from("communities").select("id", { count: "exact", head: true }),
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published"),
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "archived"),
     supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("submissions").select("id", { count: "exact", head: true }).in("status", ["rejected", "needs_changes"]),
+    supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "community_view").gte("occurred_at", since),
     supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "join_click").gte("occurred_at", since),
     supabase.from("submissions").select("*").eq("status", "pending").order("created_at", { ascending: true }).limit(LIST_LIMIT),
     supabase.from("submissions").select("*").in("status", ["rejected", "needs_changes"]).order("updated_at", { ascending: false }).limit(LIST_LIMIT),
@@ -175,7 +145,6 @@ export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminD
   ]);
 
   if (pending.error || rejected.error || published.error || archived.error || unpublished.error || auditLog.error) return null;
-
   return {
     overview: {
       publishedCommunities: publishedCommunities.count ?? 0,
@@ -183,6 +152,7 @@ export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminD
       archivedCommunities: archivedCommunities.count ?? 0,
       rejectedSubmissions: rejectedSubmissions.count ?? 0,
       totalCommunities: totalCommunities.count ?? 0,
+      recentViews: recentViews.count ?? 0,
       recentJoinClicks: recentJoinClicks.count ?? 0,
     },
     pending: await withSubmissionAdminFields(pending.data ?? [], searchTerm),
