@@ -5,7 +5,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS = 20_000;
 
 export type CommunityPreview = {
   name: string | null;
@@ -14,12 +14,7 @@ export type CommunityPreview = {
   finalUrl: string | null;
 };
 
-const EMPTY_PREVIEW: CommunityPreview = {
-  name: null,
-  memberCount: null,
-  imageUrl: null,
-  finalUrl: null,
-};
+const EMPTY_PREVIEW: CommunityPreview = { name: null, memberCount: null, imageUrl: null, finalUrl: null };
 
 function decodeHtml(value: string) {
   return value
@@ -45,28 +40,22 @@ function decodeHtml(value: string) {
 
 function meta(html: string, property: string) {
   const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i");
-  const reverse = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i");
-  return decodeHtml(pattern.exec(html)?.[1] ?? reverse.exec(html)?.[1] ?? "") || null;
+  const first = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, "i");
+  const second = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, "i");
+  return decodeHtml(first.exec(html)?.[1] ?? second.exec(html)?.[1] ?? "") || null;
 }
 
 function absoluteUrl(value: string, baseUrl: string) {
-  try {
-    return new URL(decodeHtml(value), baseUrl).toString();
-  } catch {
-    return null;
-  }
+  try { return new URL(decodeHtml(value), baseUrl).toString(); } catch { return null; }
 }
 
 function isGenericAsset(url: string) {
   try {
     const parsed = new URL(url);
-    const file = (parsed.pathname.split("/").pop() ?? "").toLowerCase();
     const haystack = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
-    return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(file)
-      || /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(haystack);
+    return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo|sprite)/i.test(haystack);
   } catch {
-    return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(url);
+    return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo|sprite)/i.test(url);
   }
 }
 
@@ -79,71 +68,19 @@ function isImageUrl(url: string) {
     || /(?:scontent|fbcdn|cdninstagram)/i.test(url);
 }
 
-function extractImage(html: string, baseUrl: string, communityName: string | null, memberCount: number | null) {
-  const candidates: Array<{ url: string; alt: string; index: number }> = [];
-
-  for (const match of html.matchAll(/<(?:img|source)\b([^>]+)>/gi)) {
-    const attrs = match[1];
-    const src = attrs.match(/(?:src|data-src|data-original|poster)=["']([^"']+)["']/i)?.[1];
-    const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] ?? "";
-    if (src && !isGenericAlt(alt)) candidates.push({ url: src, alt, index: match.index ?? 0 });
-  }
-
-  for (const match of html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)) {
-    for (const part of match[1].split(",")) {
-      const src = part.trim().split(/\s+/)[0];
-      if (src) candidates.push({ url: src, alt: "", index: match.index ?? 0 });
-    }
-  }
-
-  for (const match of html.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi)) {
-    if (!isGenericAlt(match[1])) candidates.push({ url: match[2], alt: match[1], index: match.index ?? 0 });
-  }
-
-  const decoded = decodeHtml(html);
-  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\])]+/gi)) {
-    candidates.push({ url: match[0], alt: "", index: match.index ?? 0 });
-  }
-
-  candidates.push(
-    ...[meta(html, "og:image"), meta(html, "og:image:url"), meta(html, "twitter:image"), meta(html, "twitter:image:src")]
-      .filter((value): value is string => Boolean(value))
-      .map((url) => ({ url, alt: "", index: Math.max(0, html.indexOf(url)) })),
-  );
-
-  const memberMarker = memberCount === null ? -1 : html.search(new RegExp(`${String(memberCount).replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s+members?`, "i"));
-  const normalizedName = communityName?.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
-
-  const ranked = candidates
-    .map(({ url, alt, index }) => {
-      const absolute = absoluteUrl(url, baseUrl);
-      if (!absolute || !isImageUrl(absolute) || isGenericAsset(absolute) || isGenericAlt(alt)) return null;
-      const surrounding = html.slice(Math.max(0, index - 700), Math.min(html.length, index + 1500));
-      const haystack = `${alt} ${surrounding}`.toLowerCase();
-      let score = 0;
-      if (/(?:scontent|fbcdn|cdninstagram)/i.test(absolute)) score += 30;
-      if (normalizedName && haystack.includes(normalizedName)) score += 35;
-      if (memberMarker >= 0) score += Math.max(0, 35 - Math.abs(index - memberMarker) / 100);
-      if (alt && normalizedName && alt.toLowerCase().includes(normalizedName)) score += 30;
-      if (/(?:logo|icon|favicon|sprite|avatar-placeholder|app-icon)/i.test(`${absolute} ${alt}`)) score -= 60;
-      return { url: absolute, score };
-    })
-    .filter((value): value is { url: string; score: number } => Boolean(value))
-    .sort((a, b) => b.score - a.score);
-
-  return ranked[0]?.url ?? null;
-}
-
-function visibleText(html: string) {
-  return decodeHtml(
-    html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
+function cleanName(value: string) {
+  const name = decodeHtml(value)
+    .replace(/<[^>]*>/g, " ")
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^\s*[>*`-]+\s*/, "")
+    .replace(/\\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!name || name.length > 120) return null;
+  if (/^(?:you(?:'|&apos;)?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
+  if (/^(?:instagram|group chat|use the instagram app|join instagram|community name|directgrouplink|direct group link|directgroup)$/i.test(name)) return null;
+  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
+  return name.replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "").trim() || null;
 }
 
 function extractMembers(text: string) {
@@ -160,40 +97,20 @@ function extractMembers(text: string) {
   return null;
 }
 
-function cleanName(value: string) {
-  const name = decodeHtml(value)
-    .replace(/^#{1,6}\s+/, "")
-    .replace(/^[>*`]+\s*/, "")
-    .replace(/\\n/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!name || name.length > 120) return null;
-  if (/^(?:you(?:'|&apos;)?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
-  if (/^(?:instagram|group chat|use the instagram app|join instagram)$/i.test(name)) return null;
-  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
-  const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
-  if (/^(?:directgroup|directgrouplink|direct group link|community name)$/.test(normalized)) return null;
-  return name
-    .replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "")
-    .replace(/^\s*[•·|:-]\s*/, "")
-    .trim() || null;
-}
-
 function extractName(html: string, text: string, preferredTitle?: string | null) {
-  const lines = decodeHtml(text)
-    .split(/\r?\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const normalized = decodeHtml(text).replace(/\r/g, "");
+  const lines = normalized.split(/\n+/).map((line) => line.trim()).filter(Boolean);
 
-  for (let index = 0; index < lines.length; index += 1) {
-    if (!/\d[\d,\.\s]*\s+members?/i.test(lines[index])) continue;
-    for (let back = 1; back <= 3; back += 1) {
-      const candidate = cleanName(lines[index - back] ?? "");
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!/\d[\d,\.\s]*\s+members?/i.test(lines[i])) continue;
+    for (let back = 1; back <= 4; back += 1) {
+      const candidate = cleanName(lines[i - back] ?? "");
       if (candidate) return candidate;
     }
   }
 
-  const memberMatch = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i);
+  const compact = normalized.replace(/\s+/g, " ");
+  const memberMatch = compact.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i);
   if (memberMatch) {
     const candidate = cleanName(memberMatch[1]);
     if (candidate) return candidate;
@@ -202,52 +119,76 @@ function extractName(html: string, text: string, preferredTitle?: string | null)
   const preferred = cleanName(preferredTitle ?? "");
   if (preferred) return preferred;
 
-  const titleCandidates = [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]
-    .filter((value): value is string => Boolean(value));
-  for (const value of titleCandidates) {
-    const candidate = cleanName(value);
+  for (const value of [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]) {
+    const candidate = cleanName(value ?? "");
     if (candidate) return candidate;
   }
 
-  const markdown = html.match(/^#{1,6}\s+([^\n]{2,120})$/m)?.[1];
-  if (markdown) {
-    const candidate = cleanName(markdown);
-    if (candidate) return candidate;
-  }
-
-  const heading = [...html.matchAll(/<(?:h1|h2|h3|strong|b)[^>]*>([\s\S]{2,160}?)<\/(?:h1|h2|h3|strong|b)>/gi)]
-    .map((match) => cleanName(match[1].replace(/<[^>]*>/g, " ")))
+  const heading = [...html.matchAll(/<(?:h1|h2|h3|strong|b)[^>]*>([\s\S]{2,180}?)<\/(?:h1|h2|h3|strong|b)>/gi)]
+    .map((match) => cleanName(match[1]))
     .find((value): value is string => Boolean(value));
   return heading ?? null;
 }
 
-async function fetchHtml(url: string, jina = false) {
+function extractImage(html: string, baseUrl: string, communityName: string | null, memberCount: number | null) {
+  const candidates: Array<{ raw: string; alt: string; index: number }> = [];
+  for (const match of html.matchAll(/<(?:img|source)\b([^>]+)>/gi)) {
+    const attrs = match[1];
+    const raw = attrs.match(/(?:src|data-src|data-original|data-lazy-src|poster)=["']([^"']+)["']/i)?.[1];
+    const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] ?? "";
+    if (raw && !isGenericAlt(alt)) candidates.push({ raw, alt, index: match.index ?? 0 });
+  }
+  for (const match of html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)) {
+    for (const part of match[1].split(",")) {
+      const raw = part.trim().split(/\s+/)[0];
+      if (raw) candidates.push({ raw, alt: "", index: match.index ?? 0 });
+    }
+  }
+  for (const match of html.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi)) {
+    if (!isGenericAlt(match[1])) candidates.push({ raw: match[2], alt: match[1], index: match.index ?? 0 });
+  }
+  const decoded = decodeHtml(html);
+  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\])]+/gi)) candidates.push({ raw: match[0], alt: "", index: match.index ?? 0 });
+  for (const property of ["og:image", "og:image:url", "twitter:image", "twitter:image:src"]) {
+    const raw = meta(html, property);
+    if (raw) candidates.push({ raw, alt: "", index: Math.max(0, html.indexOf(raw)) });
+  }
+
+  const memberMarker = memberCount === null ? -1 : html.search(new RegExp(`${String(memberCount).replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s+members?`, "i"));
+  const normalizedName = communityName?.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
+  const ranked = candidates.map(({ raw, alt, index }) => {
+    const url = absoluteUrl(raw, baseUrl);
+    if (!url || !isImageUrl(url) || isGenericAsset(url) || isGenericAlt(alt)) return null;
+    const surrounding = html.slice(Math.max(0, index - 700), Math.min(html.length, index + 1700)).toLowerCase();
+    const context = `${alt.toLowerCase()} ${surrounding}`;
+    let score = 0;
+    if (/(?:scontent|fbcdn|cdninstagram)/i.test(url)) score += 40;
+    if (normalizedName && context.includes(normalizedName)) score += 50;
+    if (memberMarker >= 0 && Math.abs(index - memberMarker) < 5000) score += Math.max(0, 30 - Math.abs(index - memberMarker) / 200);
+    if (alt && normalizedName && alt.toLowerCase().includes(normalizedName)) score += 25;
+    if (/(?:logo|icon|favicon|sprite|placeholder|app-icon)/i.test(`${url} ${alt}`)) score -= 100;
+    return { url, score };
+  }).filter((value): value is { url: string; score: number } => Boolean(value)).sort((a, b) => b.score - a.score);
+  return ranked[0]?.url ?? null;
+}
+
+async function fetchHtml(url: string, extraHeaders: HeadersInit = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     return await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
+      cache: "no-store",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
-        Accept: jina ? "application/json,text/markdown,text/plain,text/html;q=0.9,*/*;q=0.8" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         Referer: "https://www.instagram.com/",
-        ...(jina
-          ? {
-              "x-engine": "browser",
-              "x-no-cache": "true",
-              "x-retain-images": "true",
-              "x-with-generated-alt": "true",
-              "x-base": "true",
-            }
-          : {}),
+        ...extraHeaders,
       },
-      cache: "no-store",
     });
-  } finally {
-    clearTimeout(timeout);
-  }
+  } finally { clearTimeout(timeout); }
 }
 
 function instagramDirectUrl(inviteUrl: string) {
@@ -255,68 +196,75 @@ function instagramDirectUrl(inviteUrl: string) {
     const url = new URL(inviteUrl);
     const match = url.pathname.match(/^\/j\/([^/]+)/i);
     return match ? `https://www.instagram.com/j/${match[1]}/` : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-function jinaReaderUrl(inviteUrl: string) {
-  return `https://r.jina.ai/${inviteUrl}`;
+function jinaReaderUrl(url: string) { return `https://r.jina.ai/${url}`; }
+
+async function fetchMicrolink(url: string): Promise<CommunityPreview> {
+  const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(url)}&data.html.attr=html&meta=true&ttl=1h`;
+  const response = await fetchHtml(endpoint, { Referer: "https://microlink.io/" });
+  if (!response.ok) return EMPTY_PREVIEW;
+  const payload = await response.json() as { url?: string; data?: { html?: string; title?: string; image?: string; url?: string } };
+  const data = payload.data ?? {};
+  const html = data.html ?? "";
+  const text = visibleText(html);
+  const name = extractName(html, text, data.title ?? null);
+  const memberCount = extractMembers(text);
+  const imageUrl = extractImage(html, data.url ?? payload.url ?? url, name, memberCount) ?? (data.image && isImageUrl(data.image) && !isGenericAsset(data.image) ? data.image : null);
+  return { name, memberCount, imageUrl, finalUrl: data.url ?? payload.url ?? url };
 }
 
-async function fetchCandidate(url: string, jina = false): Promise<CommunityPreview> {
-  const response = await fetchHtml(url, jina);
+async function fetchDirect(url: string): Promise<CommunityPreview> {
+  const response = await fetchHtml(url);
+  if (!response.ok) return EMPTY_PREVIEW;
+  const html = await response.text();
+  const text = visibleText(html);
+  const memberCount = extractMembers(text);
+  const name = extractName(html, text);
+  return { name, memberCount, imageUrl: extractImage(html, response.url || url, name, memberCount), finalUrl: response.url || url };
+}
+
+async function fetchJina(url: string): Promise<CommunityPreview> {
+  const response = await fetchHtml(jinaReaderUrl(url), {
+    "X-Engine": "browser",
+    "X-Retain-Images": "true",
+    "X-Bypass-Cache": "true",
+    "X-With-Generated-Alt": "true",
+  });
   if (!response.ok) return EMPTY_PREVIEW;
   const raw = await response.text();
-
-  if (jina) {
-    try {
-      const payload = JSON.parse(raw) as { title?: string; content?: string; url?: string };
-      const content = payload.content ?? "";
-      const text = visibleText(content);
-      const memberCount = extractMembers(`${content}\n${text}`);
-      const name = extractName(content, content, payload.title ?? null);
-      return {
-        name,
-        memberCount,
-        imageUrl: extractImage(content, payload.url ?? url, name, memberCount),
-        finalUrl: payload.url ?? url,
-      };
-    } catch {
-      const text = visibleText(raw);
-      const memberCount = extractMembers(text);
-      const name = extractName(raw, raw);
-      return {
-        name,
-        memberCount,
-        imageUrl: extractImage(raw, response.url || url, name, memberCount),
-        finalUrl: response.url || url,
-      };
-    }
+  try {
+    const payload = JSON.parse(raw) as { title?: string; content?: string; url?: string };
+    const content = payload.content ?? "";
+    const name = extractName(content, content, payload.title ?? null);
+    const memberCount = extractMembers(content);
+    return { name, memberCount, imageUrl: extractImage(content, payload.url ?? url, name, memberCount), finalUrl: payload.url ?? url };
+  } catch {
+    const memberCount = extractMembers(raw);
+    const name = extractName(raw, raw);
+    return { name, memberCount, imageUrl: extractImage(raw, response.url || url, name, memberCount), finalUrl: response.url || url };
   }
+}
 
-  const text = visibleText(raw);
-  const memberCount = extractMembers(text);
-  const name = extractName(raw, text);
-  return {
-    name,
-    memberCount,
-    imageUrl: extractImage(raw, response.url || url, name, memberCount),
-    finalUrl: response.url || url,
-  };
+function visibleText(html: string) {
+  return decodeHtml(html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
 }
 
 export async function resolveCommunityPreview(inviteUrl: string): Promise<CommunityPreview> {
-  const candidates = [
-    jinaReaderUrl(inviteUrl),
-    instagramDirectUrl(inviteUrl),
-    inviteUrl,
-  ].filter((value): value is string => Boolean(value));
+  const direct = instagramDirectUrl(inviteUrl);
+  const loaders = [
+    () => fetchMicrolink(direct ?? inviteUrl),
+    () => fetchMicrolink(inviteUrl),
+    direct ? () => fetchDirect(direct) : null,
+    () => fetchDirect(inviteUrl),
+    () => fetchJina(direct ?? inviteUrl),
+  ].filter((value): value is () => Promise<CommunityPreview> => Boolean(value));
 
   let merged = EMPTY_PREVIEW;
-  for (const url of candidates) {
+  for (const loader of loaders) {
     try {
-      const preview = await fetchCandidate(url, url.startsWith("https://r.jina.ai/"));
+      const preview = await loader();
       merged = {
         name: merged.name ?? preview.name,
         memberCount: merged.memberCount ?? preview.memberCount,
@@ -325,59 +273,34 @@ export async function resolveCommunityPreview(inviteUrl: string): Promise<Commun
       };
       if (merged.name && merged.memberCount !== null && merged.imageUrl) break;
     } catch {
-      // Try the next public source.
+      // Best-effort resolver: continue with the next public rendering path.
     }
   }
-
   return merged;
 }
 
 async function fetchImage(imageUrl: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(imageUrl, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
-        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-        Referer: "https://www.instagram.com/",
-      },
-      cache: "no-store",
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchHtml(imageUrl, {
+    Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+    Referer: "https://www.instagram.com/",
+  });
 }
 
 export async function storeRemoteCommunityImage(imageUrl: string, ownerUserId: string) {
   try {
-    if (!imageUrl || isGenericAsset(imageUrl)) return null;
+    if (!imageUrl || !ownerUserId || isGenericAsset(imageUrl)) return null;
     const response = await fetchImage(imageUrl);
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
-    const extension = contentType === "image/png"
-      ? "png"
-      : contentType === "image/webp"
-        ? "webp"
-        : contentType === "image/avif"
-          ? "avif"
-          : contentType === "image/jpeg"
-            ? "jpg"
-            : null;
-    if (!extension || !ownerUserId) return null;
+    const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : contentType === "image/avif" ? "avif" : contentType === "image/jpeg" ? "jpg" : null;
+    if (!extension) return null;
     const contentLength = Number(response.headers.get("content-length") ?? "0");
     if (contentLength > MAX_IMAGE_BYTES) return null;
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) return null;
     const path = `submissions/${ownerUserId}/${crypto.randomUUID()}.${extension}`;
     const admin = createAdminSupabaseClient();
-    const { error } = await admin.storage.from(COMMUNITY_IMAGE_BUCKET).upload(path, bytes, {
-      contentType,
-      cacheControl: "31536000",
-      upsert: false,
-    });
+    const { error } = await admin.storage.from(COMMUNITY_IMAGE_BUCKET).upload(path, bytes, { contentType, cacheControl: "31536000", upsert: false });
     return error ? null : path;
   } catch {
     return null;
