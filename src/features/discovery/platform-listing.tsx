@@ -5,15 +5,11 @@ import { SearchForm } from "@/components/discovery/search-form";
 import { Reveal } from "@/components/ui/reveal";
 import { getPublishedCommunities, getTrendingPublishedCommunities, searchPublishedCommunities } from "@/features/communities/data-access";
 import { toCommunityPresentation } from "@/features/communities/presentation";
+import styles from "./platform-listing.module.css";
 
 type ListingKind = "search" | "trending" | "new";
 
-type ListingProps = {
-  kind: ListingKind;
-  query?: string;
-  category?: string;
-  sort?: "newest" | "members";
-};
+type ListingProps = { kind: ListingKind; query?: string; category?: string; sort?: "newest" | "members" };
 
 export async function PlatformListing({ kind, query = "", category = "", sort = "newest" }: ListingProps) {
   const result = kind === "search"
@@ -23,12 +19,7 @@ export async function PlatformListing({ kind, query = "", category = "", sort = 
       : await getPublishedCommunities({ categorySlug: category || undefined, sort: sort === "members" ? "members" : "newest" });
   const communities = result.data ? await Promise.all(result.data.map(toCommunityPresentation)) : [];
   const title = kind === "search" ? "Search communities" : kind === "trending" ? "Trending communities" : "New communities";
-  const subtitle = kind === "search" && query
-    ? `Results for “${query}”`
-    : kind === "trending"
-      ? "What people are discovering and joining right now."
-      : "The latest published Instagram group chats.";
-  const resultCount = communities.length;
+  const subtitle = kind === "search" && query ? `Results for “${query}”` : kind === "trending" ? "What people are discovering and joining right now." : "Freshly published Instagram group chats.";
 
   return (
     <main className="platform-page">
@@ -39,9 +30,9 @@ export async function PlatformListing({ kind, query = "", category = "", sort = 
         <p>{subtitle}</p>
         {kind === "search" && <SearchForm query={query} className="platform-search" />}
       </section>
-      <div className="listing-toolbar">
-        <div>
-          <strong>{resultCount ? `${resultCount} communities` : "No communities"}</strong>
+      <div className={styles.toolbar}>
+        <div className={styles.summary}>
+          <strong>{communities.length ? `${communities.length} communities` : "No communities"}</strong>
           <span>{kind === "trending" ? "Ranked by recent views + joins" : "Published listings only"}</span>
         </div>
         <DiscoveryFilters category={category} sort={sort} />
@@ -51,7 +42,7 @@ export async function PlatformListing({ kind, query = "", category = "", sort = 
           ? <p className="neon-empty">Communities are temporarily unavailable. Please try again later.</p>
           : communities.length
             ? <CommunityGrid communities={communities} />
-            : <div className="listing-empty"><p className="neon-empty">No published communities match these filters yet.</p><Link href="/submit" className="join-button empty-cta">List the first community</Link></div>}
+            : <div className={styles.empty}><p className="neon-empty">No published communities match these filters yet.</p><Link href="/submit" className={`join-button ${styles.emptyCta}`}>List the first community</Link></div>}
       </Reveal>
     </main>
   );
