@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...preview,
       imagePath,
-      success: Boolean(preview.name || preview.memberCount !== null || preview.imagePath),
+      success: Boolean(preview.name || preview.memberCount !== null || preview.imageUrl),
     });
   } catch {
     return NextResponse.json({ error: "Community preview could not be fetched." }, { status: 400 });
