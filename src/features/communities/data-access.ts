@@ -68,6 +68,22 @@ export async function getPublishedCommunityBySlug(slug: string): Promise<Communi
   return { data, error: null };
 }
 
+/** Published peers sharing an existing category relationship with a community. */
+export async function getPublishedRelatedCommunities(communityId: string, limit = 6): Promise<CommunityQueryResult<CommunityRow[]>> {
+  const supabase = createServerSupabaseClient();
+  const { data: sourceLinks, error: sourceError } = await supabase.from("community_categories").select("category_id").eq("community_id", communityId);
+  if (sourceError) return queryFailure(sourceError, "Unable to load related communities.");
+  const categoryIds = [...new Set(sourceLinks.map((link) => link.category_id))];
+  if (!categoryIds.length) return { data: [], error: null };
+  const { data: links, error: linkError } = await supabase.from("community_categories").select("community_id").in("category_id", categoryIds).neq("community_id", communityId);
+  if (linkError) return queryFailure(linkError, "Unable to load related communities.");
+  const ids = [...new Set(links.map((link) => link.community_id))];
+  if (!ids.length) return { data: [], error: null };
+  const { data, error } = await supabase.from("communities").select("*").eq("status", "published").in("id", ids).order("published_at", { ascending: false }).limit(limit);
+  if (error) return queryFailure(error, "Unable to load related communities.");
+  return { data, error: null };
+}
+
 /** Searches the V1 public read model by listing text and active category names. */
 export async function searchPublishedCommunities(term: string): Promise<CommunityQueryResult<CommunityRow[]>> {
   const searchTerm = normalizeSearchTerm(term);
