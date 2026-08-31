@@ -54,11 +54,12 @@ export default async function OwnerDashboardPage() {
     </section>
 
     <section className={styles.section}>
-      <div className={styles.sectionHeading}><div><p className="eyebrow">COMING SOON</p><h2>Grow your community on ChatScout</h2></div></div>
+      <div className={styles.sectionHeading}><div><p className="eyebrow">GROW & EARN</p><h2>More ways to grow your community</h2><p>Premium discovery and brand opportunities are being prepared for community owners.</p></div></div>
       <div className={styles.monetization}>
-        <article><span>Featured</span><h3>Put your community in front of more people.</h3><p>Premium discovery placements are coming soon.</p><b>Coming soon</b></article>
-        <article><span>Analytics Pro</span><h3>Understand what drives joins.</h3><p>Deeper audience and conversion insights will be available later.</p><b>Coming soon</b></article>
-        <article><span>Brand collaborations</span><h3>Turn community attention into opportunities.</h3><p>Creator and community campaigns are planned for a later phase.</p><b>Coming soon</b></article>
+        <article><span>💰 Earn with your community</span><h3>Turn your community into an opportunity.</h3><p>Eligible communities may get opportunities to promote relevant products, services or campaigns.</p><b>Coming soon</b></article>
+        <article><span>🤝 Brand collaborations</span><h3>Get discovered by relevant brands.</h3><p>Brands will be able to discover suitable communities for targeted campaigns and collaborations.</p><b>Coming soon</b></article>
+        <article><span>🚀 Get featured</span><h3>Put your community in front of more people.</h3><p>Premium discovery placements across ChatScout are coming soon.</p><b>Coming soon</b></article>
+        <article><span>📈 Analytics Pro</span><h3>Understand what drives joins.</h3><p>Deeper audience and conversion insights will be available later.</p><b>Coming soon</b></article>
       </div>
     </section>
   </main>;
