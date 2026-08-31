@@ -16,6 +16,7 @@ function decode(value: string) {
     .replace(/\\u0026/g, "&")
     .replace(/\\u0022/g, '"')
     .replace(/\\\//g, "/")
+    .replace(/\\n/g, "\n")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -47,19 +48,22 @@ function cleanName(value: string | null | undefined) {
   if (!name || name.length > 120) return null;
   if (/^(?:you(?:'|&apos;)?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
   if (/^(?:instagram|group chat|use the instagram app|join instagram|community name)$/i.test(name)) return null;
-  if (/^(?:directgroup|directgrouplink|direct group link)$/i.test(name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase())) return null;
+  const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
+  if (/^(?:directgroup|directgrouplink|direct group link)$/.test(normalized)) return null;
   if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
   return name;
 }
 
 function extractMembers(value: string) {
   const text = decode(value);
-  for (const pattern of [
-    /\b(\d[\d,\.\s]*)\s+members?\b/i,
+  const patterns = [
     /["']number_of_members_text["']\s*[:=]\s*["'](\d[\d,\.\s]*)\s+members?["']/i,
-    /["']member[_-]?count["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
-    /["']participants?["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
-  ]) {
+    /\b(\d[\d,\.\s]*)\s+members?\b/i,
+    /\bmembers?\s*[:·-]\s*(\d[\d,\.\s]*)\b/i,
+    /["'](?:member[_-]?count|memberCount|participants?)["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
+  ];
+
+  for (const pattern of patterns) {
     const match = text.match(pattern);
     if (!match) continue;
     const n = Number(match[1].replace(/[^0-9]/g, ""));
@@ -68,7 +72,32 @@ function extractMembers(value: string) {
   return null;
 }
 
+function extractQuotedField(text: string, field: string) {
+  const pattern = new RegExp(`(?:["']|\\\\\\\"){field}(?:["']|\\\\\\\")\\s*[:=]\\s*(?:["']|\\\\\\\")((?:\\\\\\\\.|[^"'\\\\])*)(?:["']|\\\\\\\")`, "i");
+  const match = text.match(pattern);
+  if (!match) return null;
+  try {
+    return JSON.parse(`"${match[1].replace(/"/g, '\\\\"')}"`);
+  } catch {
+    return decode(match[1]);
+  }
+}
+
+function extractStructuredProps(raw: string) {
+  const title = extractQuotedField(raw, "title");
+  const membersText = extractQuotedField(raw, "number_of_members_text");
+  const image = extractQuotedField(raw, "group_image_uri");
+  return {
+    title: cleanName(title),
+    memberCount: extractMembers(membersText ?? "") ?? extractMembers(raw),
+    imageUrl: image ? decode(image) : null,
+  };
+}
+
 function extractName(html: string, memberCount: number | null, title: string | null, imageAlt: string | null) {
+  const structured = extractStructuredProps(html);
+  if (structured.title) return structured.title;
+
   const headings = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((match) => cleanName(match[1]))
     .find((value): value is string => Boolean(value));
@@ -76,26 +105,25 @@ function extractName(html: string, memberCount: number | null, title: string | n
 
   const text = plainText(html);
   if (memberCount !== null) {
-    const nearby = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
+    const compact = text.replace(/\s+/g, " ");
+    const nearby = compact.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
     const candidate = cleanName(nearby);
     if (candidate) return candidate;
   }
 
   const alt = cleanName(imageAlt);
   if (alt) return alt;
-
-  const preferred = cleanName(title);
-  return preferred;
+  return cleanName(title);
 }
 
-function isUsableImage(url: string | null) {
-  if (!url) return false;
+function isUsableImage(value: string | null) {
+  if (!value) return false;
   try {
-    const parsed = new URL(url);
-    if (!/^https?:$/i.test(parsed.protocol)) return false;
-    if (/(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo|avatar-placeholder|sprite)/i.test(parsed.pathname)) return false;
-    return /\.(?:jpe?g|png|webp|avif)(?:[?#].*)?$/i.test(url)
-      || /(?:scontent|fbcdn|cdninstagram)/i.test(`${parsed.hostname}${parsed.pathname}`);
+    const url = new URL(value);
+    if (!/^https?:$/i.test(url.protocol)) return false;
+    if (/(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo|avatar-placeholder|sprite)/i.test(url.pathname)) return false;
+    return /\.(?:jpe?g|png|webp|avif)(?:[?#].*)?$/i.test(value)
+      || /(?:scontent|fbcdn|cdninstagram)/i.test(`${url.hostname}${url.pathname}`);
   } catch {
     return false;
   }
@@ -110,7 +138,22 @@ function absolute(value: string | null | undefined, baseUrl: string) {
   }
 }
 
-async function request(url: string) {
+function firstUsableImageFromHtml(html: string, baseUrl: string) {
+  for (const match of html.matchAll(/<img\b([^>]+)>/gi)) {
+    const attrs = match[1];
+    const src = attrs.match(/(?:src|data-src|data-original|data-lazy-src)=["']([^"']+)["']/i)?.[1] ?? null;
+    const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] ?? "";
+    const url = absolute(src, baseUrl);
+    if (url && isUsableImage(url) && !/instagram\s+(?:logo|icon)|favicon|app\s+icon/i.test(alt)) return url;
+  }
+  for (const match of html.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)) {
+    const url = absolute(match[1], baseUrl);
+    if (url && isUsableImage(url)) return url;
+  }
+  return null;
+}
+
+async function request(url: string, headers: HeadersInit = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -121,8 +164,7 @@ async function request(url: string) {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
-        Accept: "application/json,text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-        Referer: "https://www.instagram.com/",
+        ...headers,
       },
     });
   } finally {
@@ -132,7 +174,7 @@ async function request(url: string) {
 
 async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(inviteUrl)}&meta=true&data.html.selector=body`;
-  const response = await request(endpoint);
+  const response = await request(endpoint, { Accept: "application/json" });
   if (!response.ok) return EMPTY;
 
   const payload = await response.json() as {
@@ -143,49 +185,71 @@ async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
       image?: { url?: string | null } | null;
     };
   };
-
   const data = payload.data;
   if (!data) return EMPTY;
 
   const html = data.html ?? "";
-  const text = plainText(html);
-  const memberCount = extractMembers(`${html}\n${text}`);
-  const markdown = [...html.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi)]
-    .map((match) => ({ alt: decode(match[1]), url: absolute(match[2], data.url ?? inviteUrl) }))
-    .find((candidate) => isUsableImage(candidate.url));
+  const structured = extractStructuredProps(html);
+  const memberCount = structured.memberCount ?? extractMembers(html);
+  const name = structured.title ?? extractName(html, memberCount, data.title ?? null, null);
 
-  const imageFromProvider = absolute(data.image?.url, data.url ?? inviteUrl);
-  const imageUrl = isUsableImage(imageFromProvider) ? imageFromProvider : markdown?.url ?? null;
-  const name = extractName(html, memberCount, data.title ?? null, markdown?.alt ?? null);
+  const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
+  const structuredImage = absolute(structured.imageUrl, data.url ?? inviteUrl);
+  const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
+  const imageUrl = [providerImage, structuredImage, htmlImage].find((value): value is string => isUsableImage(value)) ?? null;
 
-  return {
-    name,
-    memberCount,
-    imageUrl,
-    finalUrl: data.url ?? inviteUrl,
-  };
+  return { name, memberCount, imageUrl, finalUrl: data.url ?? inviteUrl };
 }
 
-async function fetchInstagram(inviteUrl: string): Promise<Preview> {
-  const response = await request(inviteUrl);
+function instagramDirectUrl(inviteUrl: string) {
+  try {
+    const url = new URL(inviteUrl);
+    const match = url.pathname.match(/^\/j\/([^/]+)\/?$/i);
+    return match ? `https://www.instagram.com/j/${match[1]}/` : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchInstagram(url: string): Promise<Preview> {
+  const response = await request(url, {
+    Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    Referer: "https://www.instagram.com/",
+  });
   if (!response.ok) return EMPTY;
   const html = await response.text();
-  const memberCount = extractMembers(html);
-  const name = extractName(html, memberCount, null, null);
-  const image = [...html.matchAll(/<img\b([^>]+)>/gi)]
-    .map((match) => match[1].match(/(?:src|data-src)=["']([^"']+)["']/i)?.[1] ?? null)
-    .map((value) => absolute(value, response.url || inviteUrl))
-    .find((value) => isUsableImage(value)) ?? null;
-
-  return { name, memberCount, imageUrl: image, finalUrl: response.url || inviteUrl };
+  const structured = extractStructuredProps(html);
+  const memberCount = structured.memberCount ?? extractMembers(html);
+  const name = structured.title ?? extractName(html, memberCount, null, null);
+  const image = structured.imageUrl && isUsableImage(structured.imageUrl)
+    ? structured.imageUrl
+    : firstUsableImageFromHtml(html, response.url || url);
+  return { name, memberCount, imageUrl: image, finalUrl: response.url || url };
 }
 
 export async function resolveRenderedCommunityPreview(inviteUrl: string): Promise<Preview> {
   try {
     const rendered = await fetchMicrolink(inviteUrl);
-    if (rendered.name || rendered.memberCount !== null || rendered.imageUrl) return rendered;
+    if (rendered.name && rendered.memberCount !== null && rendered.imageUrl) return rendered;
   } catch {
-    // Fall back to direct Instagram HTML when the rendering provider is unavailable.
+    // Continue to the direct Instagram fallback.
+  }
+
+  const direct = instagramDirectUrl(inviteUrl);
+  if (direct) {
+    try {
+      const renderedDirect = await fetchMicrolink(direct);
+      if (renderedDirect.name || renderedDirect.memberCount !== null || renderedDirect.imageUrl) return renderedDirect;
+    } catch {
+      // Continue to direct HTML.
+    }
+
+    try {
+      const directPreview = await fetchInstagram(direct);
+      if (directPreview.name || directPreview.memberCount !== null || directPreview.imageUrl) return directPreview;
+    } catch {
+      // Return an empty preview only when all public sources fail.
+    }
   }
 
   try {
