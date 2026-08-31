@@ -6,11 +6,7 @@ import type { CommunityRow, Database } from "@/types/database";
 export type SubmissionRow = Database["public"]["Tables"]["submissions"]["Row"];
 export type AuditLogRow = Database["public"]["Tables"]["admin_audit_log"]["Row"];
 
-export type AdminSubmissionItem = SubmissionRow & {
-  imageUrl: string | null;
-  submitterEmail: string | null;
-};
-
+export type AdminSubmissionItem = SubmissionRow & { imageUrl: string | null; submitterEmail: string | null };
 export type AdminCommunityItem = CommunityRow & {
   category: string | null;
   imageUrl: string | null;
@@ -20,27 +16,31 @@ export type AdminCommunityItem = CommunityRow & {
   joinClicksRecent: number;
   ctrRecent: number;
 };
+export type AdminOwnerSummary = {
+  userId: string;
+  email: string | null;
+  listedCommunities: number;
+  pendingSubmissions: number;
+  totalViewsRecent: number;
+  totalJoinClicksRecent: number;
+  ctrRecent: number;
+  lastListedAt: string | null;
+};
 
 export type AdminDashboardData = {
-  overview: {
-    publishedCommunities: number;
-    pendingSubmissions: number;
-    archivedCommunities: number;
-    rejectedSubmissions: number;
-    totalCommunities: number;
-    recentViews: number;
-    recentJoinClicks: number;
-  };
+  overview: { publishedCommunities: number; pendingSubmissions: number; archivedCommunities: number; rejectedSubmissions: number; totalCommunities: number; recentViews: number; recentJoinClicks: number };
   pending: AdminSubmissionItem[];
   published: AdminCommunityItem[];
   archived: AdminCommunityItem[];
   unpublished: AdminCommunityItem[];
   rejected: AdminSubmissionItem[];
+  owners: AdminOwnerSummary[];
   auditLog: AuditLogRow[];
 };
 
 const RECENT_ACTIVITY_DAYS = 7;
 const LIST_LIMIT = 80;
+const OWNER_LIMIT = 30;
 
 function includesQuery(values: Array<string | number | null | undefined>, query: string) {
   if (!query) return true;
@@ -57,14 +57,8 @@ async function userEmailById(userId: string | null) {
 }
 
 async function withSubmissionAdminFields(submissions: SubmissionRow[], query: string) {
-  const filtered = submissions.filter((submission) => includesQuery([
-    submission.community_name, submission.category, submission.description, submission.region, submission.language, submission.invite_url,
-  ], query));
-  return Promise.all(filtered.map(async (submission) => ({
-    ...submission,
-    imageUrl: await getPublishedCommunityImageUrl(submission.image_path),
-    submitterEmail: await userEmailById(submission.submitter_user_id),
-  })));
+  const filtered = submissions.filter((submission) => includesQuery([submission.community_name, submission.category, submission.description, submission.region, submission.language, submission.invite_url], query));
+  return Promise.all(filtered.map(async (submission) => ({ ...submission, imageUrl: await getPublishedCommunityImageUrl(submission.image_path), submitterEmail: await userEmailById(submission.submitter_user_id) })));
 }
 
 async function categoryMapForCommunities(communityIds: string[]) {
@@ -104,25 +98,38 @@ async function analyticsCounts(communityIds: string[]) {
 }
 
 async function withCommunityAdminFields(communities: CommunityRow[], query: string) {
-  const filtered = communities.filter((community) => includesQuery([
-    community.name, community.description, community.region, community.language, community.platform, community.verification_status,
-  ], query));
+  const filtered = communities.filter((community) => includesQuery([community.name, community.description, community.region, community.language, community.platform, community.verification_status], query));
   const ids = filtered.map((community) => community.id);
   const [categories, sources, analytics] = await Promise.all([categoryMapForCommunities(ids), sourceSubmissionMeta(filtered), analyticsCounts(ids)]);
   return Promise.all(filtered.map(async (community) => {
     const source = community.source_submission_id ? sources.get(community.source_submission_id) : null;
     const stats = analytics.get(community.id) ?? { views: 0, joins: 0 };
-    return {
-      ...community,
-      category: categories.get(community.id) ?? null,
-      imageUrl: await getPublishedCommunityImageUrl(community.image_path),
-      ownerEmail: await userEmailById(community.owner_user_id) ?? source?.email ?? null,
-      sourceSubmissionCreatedAt: source?.createdAt ?? null,
-      viewsRecent: stats.views,
-      joinClicksRecent: stats.joins,
-      ctrRecent: stats.views ? Math.round((stats.joins / stats.views) * 1000) / 10 : 0,
-    };
+    return { ...community, category: categories.get(community.id) ?? null, imageUrl: await getPublishedCommunityImageUrl(community.image_path), ownerEmail: await userEmailById(community.owner_user_id) ?? source?.email ?? null, sourceSubmissionCreatedAt: source?.createdAt ?? null, viewsRecent: stats.views, joinClicksRecent: stats.joins, ctrRecent: stats.views ? Math.round((stats.joins / stats.views) * 1000) / 10 : 0 };
   }));
+}
+
+async function buildOwnerSummary(communities: CommunityRow[], submissions: SubmissionRow[], analytics: Map<string, { views: number; joins: number }>) {
+  const owners = new Map<string, { listed: number; pending: number; views: number; joins: number; lastListedAt: string | null }>();
+  for (const community of communities) {
+    const userId = community.owner_user_id;
+    if (!userId) continue;
+    const current = owners.get(userId) ?? { listed: 0, pending: 0, views: 0, joins: 0, lastListedAt: null };
+    current.listed += 1;
+    current.lastListedAt = !current.lastListedAt || new Date(community.created_at) > new Date(current.lastListedAt) ? community.created_at : current.lastListedAt;
+    const stats = analytics.get(community.id) ?? { views: 0, joins: 0 };
+    current.views += stats.views;
+    current.joins += stats.joins;
+    owners.set(userId, current);
+  }
+  for (const submission of submissions) {
+    const userId = submission.submitter_user_id;
+    if (!userId) continue;
+    const current = owners.get(userId) ?? { listed: 0, pending: 0, views: 0, joins: 0, lastListedAt: null };
+    if (submission.status === "pending") current.pending += 1;
+    owners.set(userId, current);
+  }
+  const entries = await Promise.all([...owners.entries()].map(async ([userId, current]) => ({ userId, email: await userEmailById(userId), listedCommunities: current.listed, pendingSubmissions: current.pending, totalViewsRecent: current.views, totalJoinClicksRecent: current.joins, ctrRecent: current.views ? Math.round((current.joins / current.views) * 1000) / 10 : 0, lastListedAt: current.lastListedAt })));
+  return entries.sort((a, b) => (b.listedCommunities - a.listedCommunities) || (b.totalJoinClicksRecent - a.totalJoinClicksRecent)).slice(0, OWNER_LIMIT);
 }
 
 export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminDashboardData | null> {
@@ -143,23 +150,17 @@ export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminD
     supabase.from("communities").select("*").in("status", ["draft", "suspended"]).order("updated_at", { ascending: false }).limit(LIST_LIMIT),
     supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(20),
   ]);
-
   if (pending.error || rejected.error || published.error || archived.error || unpublished.error || auditLog.error) return null;
+  const communityPool = [...(published.data ?? []), ...(archived.data ?? []), ...(unpublished.data ?? [])];
+  const communityAnalytics = await analyticsCounts([...new Set(communityPool.map((community) => community.id))]);
   return {
-    overview: {
-      publishedCommunities: publishedCommunities.count ?? 0,
-      pendingSubmissions: pendingSubmissions.count ?? 0,
-      archivedCommunities: archivedCommunities.count ?? 0,
-      rejectedSubmissions: rejectedSubmissions.count ?? 0,
-      totalCommunities: totalCommunities.count ?? 0,
-      recentViews: recentViews.count ?? 0,
-      recentJoinClicks: recentJoinClicks.count ?? 0,
-    },
+    overview: { publishedCommunities: publishedCommunities.count ?? 0, pendingSubmissions: pendingSubmissions.count ?? 0, archivedCommunities: archivedCommunities.count ?? 0, rejectedSubmissions: rejectedSubmissions.count ?? 0, totalCommunities: totalCommunities.count ?? 0, recentViews: recentViews.count ?? 0, recentJoinClicks: recentJoinClicks.count ?? 0 },
     pending: await withSubmissionAdminFields(pending.data ?? [], searchTerm),
     published: await withCommunityAdminFields(published.data ?? [], searchTerm),
     archived: await withCommunityAdminFields(archived.data ?? [], searchTerm),
     unpublished: await withCommunityAdminFields(unpublished.data ?? [], searchTerm),
     rejected: await withSubmissionAdminFields(rejected.data ?? [], searchTerm),
+    owners: await buildOwnerSummary(communityPool, pending.data ?? [], communityAnalytics),
     auditLog: auditLog.data ?? [],
   };
 }
