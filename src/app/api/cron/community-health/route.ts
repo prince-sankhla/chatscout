@@ -3,13 +3,13 @@ import crypto from "node:crypto";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendAdminNotification } from "@/lib/notifications/email";
 import { resolveCommunityPreview, storeRemoteCommunityImage } from "@/features/community-monitor/resolver";
-import type { AdminAuditAction } from "@/types/database";
+import type { AdminAuditAction, Database } from "@/types/database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FAILURE_THRESHOLD = 3;
-
+type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
 type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
 
 function authorized(request: Request) {
@@ -56,13 +56,14 @@ export async function GET(request: Request) {
       results.failed += 1;
       const failures = (community.health_failure_count ?? 0) + 1;
       const shouldArchive = failures >= FAILURE_THRESHOLD;
-      const update = {
+      const now = new Date().toISOString();
+      const update: CommunityUpdate = {
         health_status: shouldArchive ? "inactive" : "needs_recheck",
-        health_last_checked_at: new Date().toISOString(),
+        health_last_checked_at: now,
         health_failure_count: failures,
         last_health_error: "Instagram invite could not be verified publicly.",
         verification_status: shouldArchive ? "broken" : community.verification_status,
-        ...(shouldArchive ? { status: "archived" as const, archived_at: new Date().toISOString(), archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}),
+        ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}),
       };
       await admin.from("communities").update(update).eq("id", community.id);
       await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
     }
 
     let changed = false;
-    const update: Record<string, unknown> = {
+    const update: CommunityUpdate = {
       health_status: "healthy",
       health_last_checked_at: new Date().toISOString(),
       health_failure_count: 0,
