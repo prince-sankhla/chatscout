@@ -6,7 +6,6 @@ import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
-const JINA_TIMEOUT_MS = 20_000;
 
 export type CommunityPreview = {
   name: string | null;
@@ -64,13 +63,13 @@ function looksLikeImageUrl(value: string) {
     || /(?:image|photo|picture|avatar|profile[_-]?pic)/i.test(value);
 }
 
+function isLikelyGenericInstagramAsset(value: string) {
+  return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(value);
+}
+
 function extractImage(html: string, baseUrl: string) {
-  const candidates: string[] = [
-    meta(html, "og:image"),
-    meta(html, "og:image:url"),
-    meta(html, "twitter:image"),
-    meta(html, "twitter:image:src"),
-  ].filter((value): value is string => Boolean(value));
+  // Prefer images that appear in the actual page over generic OpenGraph defaults.
+  const candidates: string[] = [];
 
   for (const match of html.matchAll(/<(?:img|source)[^>]+(?:src|data-src|data-original|poster)=["']([^"']+)["'][^>]*>/gi)) {
     candidates.push(match[1]);
@@ -81,17 +80,25 @@ function extractImage(html: string, baseUrl: string) {
   }
 
   const decoded = decodeHtml(html);
-  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\\]+/gi)) {
+  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>]+/gi)) {
     const url = match[0].replace(/\\+$/g, "");
-    if (looksLikeImageUrl(url) || /(?:scontent|fbcdn|cdninstagram)/i.test(url)) candidates.push(url);
+    if (looksLikeImageUrl(url)) candidates.push(url);
   }
 
-  const absoluteCandidates = candidates
-    .map((value) => absoluteUrl(value, baseUrl))
-    .filter((value): value is string => Boolean(value));
+  candidates.push(
+    ...[meta(html, "og:image"), meta(html, "og:image:url"), meta(html, "twitter:image"), meta(html, "twitter:image:src")]
+      .filter((value): value is string => Boolean(value)),
+  );
 
-  return absoluteCandidates.find(looksLikeImageUrl)
-    ?? absoluteCandidates.find((url) => /(?:scontent|fbcdn|cdninstagram)/i.test(url))
+  const absoluteCandidates = [...new Set(
+    candidates
+      .map((value) => absoluteUrl(value, baseUrl))
+      .filter((value): value is string => Boolean(value)),
+  )];
+
+  return absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && looksLikeImageUrl(url))
+    ?? absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && /(?:scontent|fbcdn|cdninstagram)/i.test(url))
+    ?? absoluteCandidates.find(looksLikeImageUrl)
     ?? null;
 }
 
@@ -113,7 +120,7 @@ function extractMembers(html: string) {
     /(\d[\d,\.\s]*)\s+members?/i,
     /members?\s*[:·-]?\s*(\d[\d,\.\s]*)/i,
     /member[_-]?count["'\s:=]+(\d+)/i,
-    /participant[_-]?(?:count|number)?["'\s:=]+(\d+)/i,
+    /participants?["'\s:=]+(\d+)/i,
   ];
 
   for (const text of candidates) {
@@ -136,7 +143,9 @@ function cleanName(value: string) {
   if (/^(you'?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
   if (/^you(?:&apos;|')re invited to join/i.test(name)) return null;
   if (/^(instagram|group chat|use the instagram app)/i.test(name)) return null;
-  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
+  if /^\d[\d,\.\s]*\s+members?$/i.test(name) return null;
+  const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
+  if (/^(directgroup|directgrouplink|direct group link)$/.test(normalized)) return null;
   return name
     .replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "")
     .replace(/^\s*[•·|:-]\s*/, "")
@@ -144,6 +153,18 @@ function cleanName(value: string) {
 }
 
 function extractName(html: string) {
+  // Prefer the visible title immediately before the member count.
+  const text = visibleText(html);
+  const memberMatch = text.match(/(.{2,120}?)\s+(\d[\d,\.\s]*)\s+members?/i);
+  if (memberMatch) {
+    const before = memberMatch[1]
+      .split(/(?:Use the Instagram app|You'?re invited|Instagram|\n|\r)/i)
+      .pop()
+      ?.trim() ?? memberMatch[1];
+    const candidate = cleanName(before);
+    if (candidate) return candidate;
+  }
+
   const directMeta = [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]
     .filter((value): value is string => Boolean(value));
   for (const value of directMeta) {
@@ -151,32 +172,22 @@ function extractName(html: string) {
     if (name) return name;
   }
 
-  const decoded = decodeHtml(html);
+  const headings = [...html.matchAll(/<(?:h1|h2|h3|strong|b)[^>]*>([\s\S]{2,180}?)<\/(?:h1|h2|h3|strong|b)>/gi)]
+    .map((match) => cleanName(match[1].replace(/<[^>]*>/g, " ")))
+    .filter((value): value is string => Boolean(value));
+  const headingName = headings.find((value) => !/members?/i.test(value));
+  if (headingName) return headingName;
+
   const keyPatterns = [
-    /(?:thread[_-]?(?:title|name)|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i,
-    /(?:title|name)["'\s:=]+["']([^"']{2,120})["'][\s\S]{0,900}?(?:member|participant)/i,
+    /(?:thread[_-]?title|thread[_-]?name|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i,
   ];
   for (const pattern of keyPatterns) {
-    const match = decoded.match(pattern);
+    const match = decodeHtml(html).match(pattern);
     const name = match?.[1] ? cleanName(match[1]) : null;
     if (name) return name;
   }
 
-  const text = visibleText(html);
-  const memberMatch = text.match(/(.{2,120}?)\s+(\d[\d,\.\s]*)\s+members?/i);
-  if (memberMatch) {
-    const before = memberMatch[1]
-      .split(/(?:Use the Instagram app|You'?re invited|Instagram)/i)
-      .pop()
-      ?.trim() ?? memberMatch[1];
-    const candidate = cleanName(before);
-    if (candidate) return candidate;
-  }
-
-  const headings = [...html.matchAll(/<(?:h1|h2|h3|strong|b)[^>]*>([\s\S]{2,180}?)<\/(?:h1|h2|h3|strong|b)>/gi)]
-    .map((match) => cleanName(match[1].replace(/<[^>]*>/g, " ")))
-    .filter((value): value is string => Boolean(value));
-  return headings.find((value) => !/members?/i.test(value)) ?? null;
+  return null;
 }
 
 async function fetchHtml(url: string) {
@@ -191,39 +202,9 @@ async function fetchHtml(url: string) {
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         Referer: "https://www.instagram.com/",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Upgrade-Insecure-Requests": "1",
       },
       cache: "no-store",
     });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchViaJina(url: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), JINA_TIMEOUT_MS);
-  try {
-    const response = await fetch(`https://r.jina.ai/${url}`, {
-      signal: controller.signal,
-      headers: {
-        Accept: "text/html",
-        "X-Engine": "browser",
-        "X-Respond-With": "html",
-        "X-No-Cache": "true",
-        DNT: "1",
-        "X-Timeout": "15",
-        "X-User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
-      },
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    return { html: await response.text(), finalUrl: url };
-  } catch {
-    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -239,21 +220,13 @@ function instagramDirectUrl(inviteUrl: string) {
   }
 }
 
-function parsePreview(html: string, baseUrl: string): CommunityPreview {
-  return {
-    name: extractName(html),
-    memberCount: extractMembers(html),
-    imageUrl: extractImage(html, baseUrl),
-    finalUrl: baseUrl,
-  };
-}
-
-function hasSignal(preview: CommunityPreview) {
-  return Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+function jinaReaderUrl(inviteUrl: string) {
+  return `https://r.jina.ai/${inviteUrl}`;
 }
 
 async function fetchCandidateUrls(inviteUrl: string) {
-  const urls = [inviteUrl, instagramDirectUrl(inviteUrl)].filter((value): value is string => Boolean(value));
+  const urls = [inviteUrl, instagramDirectUrl(inviteUrl), jinaReaderUrl(inviteUrl)]
+    .filter((value): value is string => Boolean(value));
   const seen = new Set<string>();
 
   for (const url of urls) {
@@ -263,21 +236,20 @@ async function fetchCandidateUrls(inviteUrl: string) {
       const response = await fetchHtml(url);
       if (!response.ok) continue;
       const html = await response.text();
-      const baseUrl = response.url || url;
-      const preview = parsePreview(html, baseUrl);
-      if (hasSignal(preview)) return preview;
+      const baseUrl = response.url || inviteUrl;
+      const preview = {
+        name: extractName(html),
+        memberCount: extractMembers(html),
+        imageUrl: extractImage(html, baseUrl),
+        finalUrl: baseUrl,
+      };
+      // Don't stop on a generic image-only result. Keep trying for a real title/image.
+      const usefulName = preview.name && !isLikelyGenericInstagramAsset(preview.name);
+      const usefulImage = preview.imageUrl && !isLikelyGenericInstagramAsset(preview.imageUrl);
+      if (usefulName || preview.memberCount !== null || usefulImage) return preview;
     } catch {
       // Try the next public candidate URL.
     }
-  }
-
-  // Instagram may render the useful invite data only after JavaScript runs.
-  // Jina Reader provides a browser-rendered fallback without requiring ChatScout credentials.
-  for (const url of [instagramDirectUrl(inviteUrl), inviteUrl].filter((value): value is string => Boolean(value))) {
-    const result = await fetchViaJina(url);
-    if (!result) continue;
-    const preview = parsePreview(result.html, result.finalUrl);
-    if (hasSignal(preview)) return preview;
   }
 
   return EMPTY_PREVIEW;
