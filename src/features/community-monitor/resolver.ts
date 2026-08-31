@@ -25,7 +25,7 @@ function meta(html: string, property: string) {
 }
 
 function extractImage(html: string) {
-  const candidates = [meta(html, "og:image"), meta(html, "twitter:image")];
+  const candidates: string[] = [meta(html, "og:image"), meta(html, "twitter:image")].filter((value): value is string => Boolean(value));
   const imageTags = [...html.matchAll(/<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi)].map((match) => decodeHtml(match[1]));
   candidates.push(...imageTags);
   return candidates.find((url) => /^https?:\/\//i.test(url)) ?? null;
@@ -78,7 +78,7 @@ export async function storeRemoteCommunityImage(imageUrl: string, ownerUserId: s
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
     const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : contentType === "image/jpeg" ? "jpg" : null;
-    if (!extension) return null;
+    if (!extension || !ownerUserId) return null;
     const contentLength = Number(response.headers.get("content-length") ?? "0");
     if (contentLength > MAX_IMAGE_BYTES) return null;
     const bytes = new Uint8Array(await response.arrayBuffer());
