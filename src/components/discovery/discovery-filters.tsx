@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import styles from "./discovery-filters.module.css";
 
 const CATEGORY_OPTIONS = [
   ["", "All categories"],
@@ -35,14 +36,14 @@ export function DiscoveryFilters({ category = "", sort = "newest" }: { category?
   }
 
   return (
-    <div className="discovery-filter-bar" aria-label="Community filters">
-      <label>
+    <div className={styles.bar} aria-label="Community filters">
+      <label className={styles.field}>
         <span>Category</span>
         <select value={category} onChange={(event) => update(event.target.value, sort)}>
           {CATEGORY_OPTIONS.map(([value, label]) => <option value={value} key={value || "all"}>{label}</option>)}
         </select>
       </label>
-      <label>
+      <label className={styles.field}>
         <span>Sort by</span>
         <select value={sort} onChange={(event) => update(category, event.target.value)}>
           <option value="newest">Newest</option>
@@ -50,7 +51,7 @@ export function DiscoveryFilters({ category = "", sort = "newest" }: { category?
         </select>
       </label>
       {(category || sort !== "newest") && (
-        <button type="button" className="filter-reset" onClick={() => update("", "newest")}>Reset</button>
+        <button type="button" className={styles.reset} onClick={() => update("", "newest")}>Reset</button>
       )}
     </div>
   );
