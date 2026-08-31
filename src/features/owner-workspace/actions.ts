@@ -48,12 +48,30 @@ export async function requestCommunityUpdate(formData: FormData) {
 
   if (!payload.name || !payload.description || !payload.invite_url) redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=required`);
 
-  const { error } = await supabase.from("owner_update_requests").insert({
+  const { data: pendingRequest } = await supabase
+    .from("owner_update_requests")
+    .select("id")
+    .eq("community_id", communityId)
+    .eq("owner_user_id", user.id)
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
+  if (pendingRequest) redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=pending`);
+
+  const { data: request, error } = await supabase.from("owner_update_requests").insert({
     community_id: communityId,
     owner_user_id: user.id,
     payload,
+  }).select("id").single();
+  if (error || !request) redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=database`);
+
+  await supabase.from("owner_notifications").insert({
+    user_id: user.id,
+    title: "Update request received",
+    message: `Your proposed changes for ${community.name} were sent for review.`,
+    kind: "info",
+    href: "/dashboard/notifications",
   });
-  if (error) redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=database`);
 
   redirect("/dashboard?update=requested");
 }
