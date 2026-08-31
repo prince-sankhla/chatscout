@@ -68,7 +68,6 @@ function isLikelyGenericInstagramAsset(value: string) {
 }
 
 function extractImage(html: string, baseUrl: string) {
-  // Prefer images that appear in the actual page over generic OpenGraph defaults.
   const candidates: string[] = [];
 
   for (const match of html.matchAll(/<(?:img|source)[^>]+(?:src|data-src|data-original|poster)=["']([^"']+)["'][^>]*>/gi)) {
@@ -79,7 +78,6 @@ function extractImage(html: string, baseUrl: string) {
     candidates.push(...match[1].split(",").map((part) => part.trim().split(/\s+/)[0]));
   }
 
-  // Jina Reader and similar browser-rendered readers commonly emit Markdown images.
   for (const match of html.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)) {
     candidates.push(match[1]);
   }
@@ -103,7 +101,6 @@ function extractImage(html: string, baseUrl: string) {
 
   return absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && looksLikeImageUrl(url))
     ?? absoluteCandidates.find((url) => !isLikelyGenericInstagramAsset(url) && /(?:scontent|fbcdn|cdninstagram)/i.test(url))
-    ?? absoluteCandidates.find(looksLikeImageUrl)
     ?? null;
 }
 
@@ -158,7 +155,6 @@ function cleanName(value: string) {
 }
 
 function extractName(html: string) {
-  // Prefer the visible title immediately before the member count.
   const text = visibleText(html);
   const memberMatch = text.match(/(.{2,120}?)\s+(\d[\d,\.\s]*)\s+members?/i);
   if (memberMatch) {
@@ -233,6 +229,7 @@ async function fetchCandidateUrls(inviteUrl: string) {
   const urls = [inviteUrl, instagramDirectUrl(inviteUrl), jinaReaderUrl(inviteUrl)]
     .filter((value): value is string => Boolean(value));
   const seen = new Set<string>();
+  const previews: CommunityPreview[] = [];
 
   for (const url of urls) {
     if (seen.has(url)) continue;
@@ -242,18 +239,26 @@ async function fetchCandidateUrls(inviteUrl: string) {
       if (!response.ok) continue;
       const html = await response.text();
       const baseUrl = response.url || inviteUrl;
-      const preview = {
+      previews.push({
         name: extractName(html),
         memberCount: extractMembers(html),
         imageUrl: extractImage(html, baseUrl),
         finalUrl: baseUrl,
-      };
-      const usefulName = preview.name !== null;
-      const usefulImage = preview.imageUrl !== null && !isLikelyGenericInstagramAsset(preview.imageUrl);
-      if (usefulName || preview.memberCount !== null || usefulImage) return preview;
+      });
     } catch {
       // Try the next public candidate URL.
     }
+  }
+
+  const name = previews.map((preview) => preview.name).find((value): value is string => Boolean(value)) ?? null;
+  const memberCount = previews.map((preview) => preview.memberCount).find((value): value is number => typeof value === "number") ?? null;
+  const imageUrl = previews
+    .map((preview) => preview.imageUrl)
+    .find((value): value is string => Boolean(value) && !isLikelyGenericInstagramAsset(value)) ?? null;
+  const finalUrl = previews.find((preview) => preview.name || preview.memberCount !== null || preview.imageUrl)?.finalUrl ?? null;
+
+  if (name || memberCount !== null || imageUrl) {
+    return { name, memberCount, imageUrl, finalUrl };
   }
 
   return EMPTY_PREVIEW;
