@@ -8,7 +8,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
 import { Reveal } from "@/components/ui/reveal";
 import { recordCommunityView } from "@/features/analytics/data-access";
-import { getPublishedCommunities, getPublishedCommunityBySlug, getPublishedRelatedCommunities } from "@/features/communities/data-access";
+import { getPublishedCommunityBySlug, getPublishedRelatedCommunities, getTrendingPublishedCommunities } from "@/features/communities/data-access";
 import { toCommunityPresentation } from "@/features/communities/presentation";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -29,10 +29,16 @@ export default async function CommunityPage({ params }: PageProps) {
   if (!communityRow) notFound();
   void recordCommunityView(communityRow.id);
   const community = await toCommunityPresentation(communityRow);
-  const [relatedResult, publishedResult] = await Promise.all([getPublishedRelatedCommunities(communityRow.id), getPublishedCommunities()]);
+  const [relatedResult, trendingResult] = await Promise.all([
+    getPublishedRelatedCommunities(communityRow.id),
+    getTrendingPublishedCommunities({ platform: "instagram" }, 8),
+  ]);
   const related = await Promise.all((relatedResult.data ?? []).map(toCommunityPresentation));
-  const relatedIds = new Set(relatedResult.data?.map((item) => item.id) ?? []);
-  const trending = await Promise.all((publishedResult.data ?? []).filter((item) => item.id !== communityRow.id && !relatedIds.has(item.id)).slice(0, 4).map(toCommunityPresentation));
+  const relatedIds = new Set((relatedResult.data ?? []).map((item) => item.id));
+  const trending = await Promise.all((trendingResult.data ?? [])
+    .filter((item) => item.id !== communityRow.id && !relatedIds.has(item.id))
+    .slice(0, 4)
+    .map(toCommunityPresentation));
   const metadata = [
     communityRow.member_count !== null ? { icon: "users" as const, label: `${communityRow.member_count.toLocaleString("en-IN")} members` } : null,
     communityRow.language ? { icon: "globe" as const, label: communityRow.language } : null,
