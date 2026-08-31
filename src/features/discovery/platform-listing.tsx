@@ -8,7 +8,6 @@ import { toCommunityPresentation } from "@/features/communities/presentation";
 import styles from "./platform-listing.module.css";
 
 type ListingKind = "search" | "trending" | "new";
-
 type ListingProps = { kind: ListingKind; query?: string; category?: string; sort?: "newest" | "members" };
 
 export async function PlatformListing({ kind, query = "", category = "", sort = "newest" }: ListingProps) {
@@ -35,7 +34,7 @@ export async function PlatformListing({ kind, query = "", category = "", sort = 
           <strong>{communities.length ? `${communities.length} communities` : "No communities"}</strong>
           <span>{kind === "trending" ? "Ranked by recent views + joins" : "Published listings only"}</span>
         </div>
-        <DiscoveryFilters category={category} sort={sort} />
+        <DiscoveryFilters category={category} sort={sort} showSort={kind !== "trending"} />
       </div>
       <Reveal>
         {result.error
