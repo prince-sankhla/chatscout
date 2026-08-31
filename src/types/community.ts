@@ -10,4 +10,7 @@ export type Community = {
   tags: string[];
   isDemo: boolean;
   imageUrl?: string | null;
+  listingAgeLabel: string;
+  healthLabel: string;
+  verificationStatus: "unverified" | "verified" | "needs_review" | "broken";
 };
