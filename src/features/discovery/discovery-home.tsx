@@ -7,16 +7,156 @@ import { Reveal } from "@/components/ui/reveal";
 import { getPublishedCommunities, searchPublishedCommunities } from "@/features/communities/data-access";
 import { toCommunityPresentation } from "@/features/communities/presentation";
 
-const topics = ["Anime", "JEE", "Coding", "Memes", "Entrepreneur", "Jaipur", "BCA"];
-const categoryIcons = [["heart", "Anime"], ["gamepad", "Gaming"], ["graduation", "Education"], ["spark", "Memes"], ["briefcase", "Business"], ["map", "Jaipur"], ["code", "Coding"], ["music", "Music"], ["heart", "Lifestyle"]] as const;
+const topics = [
+  "AI & ML",
+  "Coding",
+  "JEE",
+  "NEET",
+  "Anime",
+  "Gaming",
+  "Startups",
+  "Memes",
+  "Fitness",
+  "Jaipur",
+] as const;
 
-function EmptyCards({ message }: { message: string }) { return <p className="neon-empty">{message}</p>; }
+const categoryIcons = [
+  ["spark", "AI & ML"],
+  ["code", "Coding"],
+  ["graduation", "Education"],
+  ["gamepad", "Gaming"],
+  ["heart", "Anime & Manga"],
+  ["briefcase", "Startups & Jobs"],
+  ["music", "Music"],
+  ["flame", "Memes & Humor"],
+  ["map", "Local Communities"],
+] as const;
+
+function EmptyCards({ message }: { message: string }) {
+  return <p className="neon-empty">{message}</p>;
+}
 
 export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }) {
   const result = searchTerm ? await searchPublishedCommunities(searchTerm) : await getPublishedCommunities();
   const communities = result.data ? await Promise.all(result.data.map(toCommunityPresentation)) : [];
-  const message = result.error ? "Communities are temporarily unavailable. Please try again later." : searchTerm ? "No communities match your search." : "No published communities are available yet.";
+  const message = result.error
+    ? "Communities are temporarily unavailable. Please try again later."
+    : searchTerm
+      ? "No communities match your search. Try another topic."
+      : "No published communities are available yet.";
+
   const trending = communities.slice(0, 4);
   const newCommunities = communities.slice(4, 8);
-  return <main className="neon-page"><div className="neon-layout"><div className="neon-main"><section className="neon-hero"><div className="neon-copy"><h1>Find Your Next<br /><span>Group Chat.</span></h1><p>Discover active Instagram group chats<br />on any topic you love.</p><SearchForm query={searchTerm} /><div className="neon-popular"><span>Popular searches:</span>{topics.map((topic) => <Link href={`/search?q=${topic}`} key={topic}>{topic}</Link>)}</div></div><div className="neon-art" aria-hidden="true"><i className="orbit one" /><i className="orbit two" /><Image src="/brand/chatscout-logo.png" alt="" width={1254} height={1254} priority /><span className="art-bubble bubble-a"><Icon name="spark" /></span><span className="art-bubble bubble-b"><Icon name="users" /></span></div></section><Reveal><section className="neon-section"><div className="neon-section-head"><h2><Icon name="flame" />Trending GCs</h2><Link href="/trending">View all <Icon name="arrow" size={14} /></Link></div>{trending.length ? <CommunityGrid communities={trending} /> : <EmptyCards message={message} />}</section></Reveal><Reveal><section className="neon-bottom-cta"><div><b><Icon name="spark" />Have a Group Chat?</b><small>List it on ChatScout and reach thousands of people.</small></div><Link href="/submit">List your GC Now</Link><div><b><Icon name="shield" />We respect your privacy</b><small>We don&apos;t store your messages or personal data.</small></div><div><b><Icon name="instagram" />Made for India</b><small>Built for Indian communities by an Indian.</small></div></section></Reveal></div><aside className="neon-rail"><Reveal><section className="why-card"><h2>Why <span>ChatScout?</span></h2><ul><li><Icon name="rocket" /><span><b>100% Free</b><small>Join any group chat for free.</small></span></li><li><Icon name="shield" /><span><b>Safe &amp; Verified</b><small>We check links, you stay safe.</small></span></li><li><Icon name="bolt" /><span><b>Always Updated</b><small>New groups added every day.</small></span></li><li><Icon name="heart" /><span><b>All Topics</b><small>Anime, Coding, Memes, Study &amp; much more.</small></span></li></ul><Link href="/submit">List Your Group Chat</Link><small>Get discovered by thousands!</small></section></Reveal><Reveal><section className="newly-card"><div className="neon-section-head"><h2>Newly Added</h2><Link href="/new">View all <Icon name="arrow" size={14} /></Link></div>{newCommunities.length ? <CommunityGrid communities={newCommunities} compact /> : <EmptyCards message="New communities will appear here." />}</section></Reveal><Reveal><section className="categories-card"><h2>Top Categories</h2><div>{categoryIcons.map(([icon, label]) => <Link href={`/search?q=${label}`} key={label}><Icon name={icon} /><span>{label}</span></Link>)}</div><Link className="explore-categories" href="/categories">Explore All Categories <Icon name="arrow" size={15} /></Link></section></Reveal></aside></div><footer className="neon-footer" id="footer"><div className="footer-brand"><Image src="/brand/chatscout-logo.png" alt="ChatScout" width={1254} height={1254} /><p>India&apos;s platform to discover Instagram group chats.</p></div><div><b>Quick Links</b><span>Home<br />Categories<br />Trending<br />New GCs</span></div><div><b>Resources</b><span>Blog<br />How It Works<br />Safety Tips<br />Contact Us</span></div><div><b>Follow Us</b><span className="socials"><Icon name="instagram" /><Icon name="users" /></span></div><div className="copyright">© 2026 ChatScout. All rights reserved.<br /><small>Terms of Use　|　Privacy Policy</small></div></footer></main>;
+
+  return (
+    <main className="neon-page">
+      <div className="neon-layout">
+        <div className="neon-main">
+          <section className="neon-hero">
+            <div className="neon-copy">
+              <p className="eyebrow">INDIA'S COMMUNITY DISCOVERY PLATFORM</p>
+              <h1>
+                Find Your Next<br /><span>Group Chat.</span>
+              </h1>
+              <p>Discover active Instagram group chats by interest, community, and location.</p>
+              <SearchForm query={searchTerm} />
+              <div className="neon-popular">
+                <span>Explore:</span>
+                {topics.map((topic) => (
+                  <Link href={`/search?q=${encodeURIComponent(topic)}`} key={topic}>{topic}</Link>
+                ))}
+              </div>
+            </div>
+            <div className="neon-art" aria-hidden="true">
+              <i className="orbit one" />
+              <i className="orbit two" />
+              <Image src="/brand/chatscout-logo.png" alt="" width={1254} height={1254} priority />
+              <span className="art-bubble bubble-a"><Icon name="spark" /></span>
+              <span className="art-bubble bubble-b"><Icon name="users" /></span>
+            </div>
+          </section>
+
+          <Reveal>
+            <section className="neon-section">
+              <div className="neon-section-head">
+                <h2><Icon name="flame" />Trending GCs</h2>
+                <Link href="/trending">View all <Icon name="arrow" size={14} /></Link>
+              </div>
+              {trending.length ? <CommunityGrid communities={trending} /> : <EmptyCards message={message} />}
+            </section>
+          </Reveal>
+
+          <Reveal>
+            <section className="neon-bottom-cta">
+              <div>
+                <b><Icon name="spark" />Have a Group Chat?</b>
+                <small>List it on ChatScout and reach people already searching for communities.</small>
+              </div>
+              <Link href="/submit">List your GC</Link>
+              <div>
+                <b><Icon name="shield" />Trust-first discovery</b>
+                <small>We surface verification and activity signals before people join.</small>
+              </div>
+              <div>
+                <b><Icon name="instagram" />Made for India</b>
+                <small>Discover communities across interests, campuses, cities, and languages.</small>
+              </div>
+            </section>
+          </Reveal>
+        </div>
+
+        <aside className="neon-rail">
+          <Reveal>
+            <section className="why-card">
+              <h2>Why <span>ChatScout?</span></h2>
+              <ul>
+                <li><Icon name="rocket" /><span><b>Fast discovery</b><small>Find a relevant GC without digging through random links.</small></span></li>
+                <li><Icon name="shield" /><span><b>Trust signals</b><small>Verification, activity, age, and member context stay visible.</small></span></li>
+                <li><Icon name="bolt" /><span><b>Fresh listings</b><small>New groups and health updates keep the directory useful.</small></span></li>
+                <li><Icon name="heart" /><span><b>All kinds of interests</b><small>Study, tech, entertainment, lifestyle, local, and more.</small></span></li>
+              </ul>
+              <Link href="/submit">List Your Group Chat</Link>
+              <small>Get discovered on ChatScout.</small>
+            </section>
+          </Reveal>
+
+          <Reveal>
+            <section className="newly-card">
+              <div className="neon-section-head">
+                <h2>Newly Added</h2>
+                <Link href="/new">View all <Icon name="arrow" size={14} /></Link>
+              </div>
+              {newCommunities.length ? <CommunityGrid communities={newCommunities} compact /> : <EmptyCards message="New communities will appear here." />}
+            </section>
+          </Reveal>
+
+          <Reveal>
+            <section className="categories-card">
+              <h2>Top Categories</h2>
+              <div>
+                {categoryIcons.map(([icon, label]) => (
+                  <Link href={`/search?q=${encodeURIComponent(label)}`} key={label}>
+                    <Icon name={icon} />
+                    <span>{label}</span>
+                  </Link>
+                ))}
+              </div>
+              <Link className="explore-categories" href="/categories">Explore All Categories <Icon name="arrow" size={15} /></Link>
+            </section>
+          </Reveal>
+        </aside>
+      </div>
+
+      <footer className="neon-footer" id="footer">
+        <div className="footer-brand">
+          <Image src="/brand/chatscout-logo.png" alt="ChatScout" width={1254} height={1254} />
+          <p>India&apos;s platform to discover Instagram group chats.</p>
+        </div>
+        <div><b>Discover</b><span>Home<br />Categories<br />Trending<br />New GCs</span></div>
+        <div><b>For communities</b><span>List a GC<br />How it works<br />Safety tips<br />Guidelines</span></div>
+        <div><b>Company</b><span>About Us<br />Blog<br />Contact</span></div>
+        <div className="copyright">© 2026 ChatScout. All rights reserved.<br /><small>Terms of Use　|　Privacy Policy</small></div>
+      </footer>
+    </main>
+  );
 }
