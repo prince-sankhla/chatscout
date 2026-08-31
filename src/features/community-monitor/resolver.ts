@@ -6,7 +6,7 @@ import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
-const INSTAGRAM_HOSTS = new Set(["instagram.com", "www.instagram.com"]);
+const JINA_TIMEOUT_MS = 20_000;
 
 export type CommunityPreview = {
   name: string | null;
@@ -81,7 +81,7 @@ function extractImage(html: string, baseUrl: string) {
   }
 
   const decoded = decodeHtml(html);
-  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>]+/gi)) {
+  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\\]+/gi)) {
     const url = match[0].replace(/\\+$/g, "");
     if (looksLikeImageUrl(url) || /(?:scontent|fbcdn|cdninstagram)/i.test(url)) candidates.push(url);
   }
@@ -113,7 +113,7 @@ function extractMembers(html: string) {
     /(\d[\d,\.\s]*)\s+members?/i,
     /members?\s*[:·-]?\s*(\d[\d,\.\s]*)/i,
     /member[_-]?count["'\s:=]+(\d+)/i,
-    /participants?["'\s:=]+(\d+)/i,
+    /participant[_-]?(?:count|number)?["'\s:=]+(\d+)/i,
   ];
 
   for (const text of candidates) {
@@ -151,12 +151,13 @@ function extractName(html: string) {
     if (name) return name;
   }
 
+  const decoded = decodeHtml(html);
   const keyPatterns = [
-    /(?:thread[_-]?title|thread[_-]?name|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i,
-    /(?:title|name)["'\s:=]+["']([^"']{2,120})["'][\s\S]{0,600}?(?:member|participant)/i,
+    /(?:thread[_-]?(?:title|name)|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i,
+    /(?:title|name)["'\s:=]+["']([^"']{2,120})["'][\s\S]{0,900}?(?:member|participant)/i,
   ];
   for (const pattern of keyPatterns) {
-    const match = decodeHtml(html).match(pattern);
+    const match = decoded.match(pattern);
     const name = match?.[1] ? cleanName(match[1]) : null;
     if (name) return name;
   }
@@ -165,7 +166,7 @@ function extractName(html: string) {
   const memberMatch = text.match(/(.{2,120}?)\s+(\d[\d,\.\s]*)\s+members?/i);
   if (memberMatch) {
     const before = memberMatch[1]
-      .split(/(?:Use the Instagram app|You'?re invited|Instagram|\n|\r)/i)
+      .split(/(?:Use the Instagram app|You'?re invited|Instagram)/i)
       .pop()
       ?.trim() ?? memberMatch[1];
     const candidate = cleanName(before);
@@ -190,9 +191,39 @@ async function fetchHtml(url: string) {
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         Referer: "https://www.instagram.com/",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Upgrade-Insecure-Requests": "1",
       },
       cache: "no-store",
     });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchViaJina(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), JINA_TIMEOUT_MS);
+  try {
+    const response = await fetch(`https://r.jina.ai/${url}`, {
+      signal: controller.signal,
+      headers: {
+        Accept: "text/html",
+        "X-Engine": "browser",
+        "X-Respond-With": "html",
+        "X-No-Cache": "true",
+        DNT: "1",
+        "X-Timeout": "15",
+        "X-User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    return { html: await response.text(), finalUrl: url };
+  } catch {
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -208,6 +239,19 @@ function instagramDirectUrl(inviteUrl: string) {
   }
 }
 
+function parsePreview(html: string, baseUrl: string): CommunityPreview {
+  return {
+    name: extractName(html),
+    memberCount: extractMembers(html),
+    imageUrl: extractImage(html, baseUrl),
+    finalUrl: baseUrl,
+  };
+}
+
+function hasSignal(preview: CommunityPreview) {
+  return Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+}
+
 async function fetchCandidateUrls(inviteUrl: string) {
   const urls = [inviteUrl, instagramDirectUrl(inviteUrl)].filter((value): value is string => Boolean(value));
   const seen = new Set<string>();
@@ -220,16 +264,20 @@ async function fetchCandidateUrls(inviteUrl: string) {
       if (!response.ok) continue;
       const html = await response.text();
       const baseUrl = response.url || url;
-      const preview = {
-        name: extractName(html),
-        memberCount: extractMembers(html),
-        imageUrl: extractImage(html, baseUrl),
-        finalUrl: baseUrl,
-      };
-      if (preview.name || preview.memberCount !== null || preview.imageUrl) return preview;
+      const preview = parsePreview(html, baseUrl);
+      if (hasSignal(preview)) return preview;
     } catch {
       // Try the next public candidate URL.
     }
+  }
+
+  // Instagram may render the useful invite data only after JavaScript runs.
+  // Jina Reader provides a browser-rendered fallback without requiring ChatScout credentials.
+  for (const url of [instagramDirectUrl(inviteUrl), inviteUrl].filter((value): value is string => Boolean(value))) {
+    const result = await fetchViaJina(url);
+    if (!result) continue;
+    const preview = parsePreview(result.html, result.finalUrl);
+    if (hasSignal(preview)) return preview;
   }
 
   return EMPTY_PREVIEW;
