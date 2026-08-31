@@ -5,17 +5,35 @@ import styles from "./discovery-filters.module.css";
 
 const CATEGORY_OPTIONS = [
   ["", "All categories"],
-  ["ai-ml", "AI & ML"],
-  ["coding", "Coding"],
   ["college-university", "College & University"],
   ["jee-neet", "JEE & NEET"],
+  ["competitive-exams", "Competitive Exams"],
+  ["study-groups", "Study Groups"],
+  ["bca-mca", "BCA / MCA"],
   ["career-jobs", "Career & Jobs"],
+  ["ai-ml", "AI & ML"],
+  ["coding", "Coding"],
+  ["web-development", "Web Development"],
+  ["cybersecurity", "Cybersecurity"],
+  ["startups-entrepreneurship", "Startups & Entrepreneurship"],
+  ["cloud-devops", "Cloud & DevOps"],
   ["gaming", "Gaming"],
   ["anime-manga", "Anime & Manga"],
+  ["music", "Music"],
+  ["memes-humor", "Memes & Humor"],
   ["movies-ott", "Movies & OTT"],
+  ["sports", "Sports"],
   ["fitness", "Fitness"],
+  ["health-wellness", "Health & Wellness"],
+  ["fashion-beauty", "Fashion & Beauty"],
+  ["travel", "Travel"],
+  ["photography", "Photography"],
+  ["books-writing", "Books & Writing"],
   ["finance-investing", "Finance & Investing"],
+  ["crypto-web3", "Crypto & Web3"],
   ["creators", "Creators"],
+  ["freelance", "Freelance"],
+  ["networking", "Networking"],
   ["local-communities", "Local Communities"],
   ["india-wide", "India-wide"],
 ] as const;
@@ -50,9 +68,7 @@ export function DiscoveryFilters({ category = "", sort = "newest" }: { category?
           <option value="members">Most members</option>
         </select>
       </label>
-      {(category || sort !== "newest") && (
-        <button type="button" className={styles.reset} onClick={() => update("", "newest")}>Reset</button>
-      )}
+      {(category || sort !== "newest") && <button type="button" className={styles.reset} onClick={() => update("", "newest")}>Reset</button>}
     </div>
   );
 }
