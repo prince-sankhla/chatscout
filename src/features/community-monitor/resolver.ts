@@ -5,7 +5,8 @@ import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const FETCH_TIMEOUT_MS = 8_000;
+const FETCH_TIMEOUT_MS = 10_000;
+const INSTAGRAM_HOSTS = new Set(["instagram.com", "www.instagram.com"]);
 
 export type CommunityPreview = {
   name: string | null;
@@ -14,20 +15,32 @@ export type CommunityPreview = {
   finalUrl: string | null;
 };
 
+const EMPTY_PREVIEW: CommunityPreview = {
+  name: null,
+  memberCount: null,
+  imageUrl: null,
+  finalUrl: null,
+};
+
 function decodeHtml(value: string) {
   return value
+    .replace(/\\\//g, "/")
+    .replace(/\\u0026/g, "&")
+    .replace(/\\u003c/g, "<")
+    .replace(/\\u003e/g, ">")
+    .replace(/\\u0022/g, '"')
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&#(\d+);/g, (_, code: string) => {
-      const value = Number(code);
-      return Number.isFinite(value) ? String.fromCodePoint(value) : _;
+      const parsed = Number(code);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : _;
     })
     .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => {
-      const value = Number.parseInt(code, 16);
-      return Number.isFinite(value) ? String.fromCodePoint(value) : _;
+      const parsed = Number.parseInt(code, 16);
+      return Number.isFinite(parsed) ? String.fromCodePoint(parsed) : _;
     });
 }
 
@@ -46,8 +59,8 @@ function absoluteUrl(value: string, baseUrl: string) {
 }
 
 function looksLikeImageUrl(value: string) {
-  return /\.(?:jpe?g|png|webp)(?:[?#].*)?$/i.test(value)
-    || /(?:scontent|fbcdn|cdninstagram|instagram).*\.(?:jpe?g|png|webp)/i.test(value)
+  return /\.(?:jpe?g|png|webp|avif)(?:[?#].*)?$/i.test(value)
+    || /(?:scontent|fbcdn|cdninstagram)/i.test(value)
     || /(?:image|photo|picture|avatar|profile[_-]?pic)/i.test(value);
 }
 
@@ -59,26 +72,27 @@ function extractImage(html: string, baseUrl: string) {
     meta(html, "twitter:image:src"),
   ].filter((value): value is string => Boolean(value));
 
-  const imageTags = [...html.matchAll(/<img[^>]+(?:src|data-src|data-original)=["']([^"']+)["'][^>]*>/gi)]
-    .map((match) => match[1]);
-  candidates.push(...imageTags);
+  for (const match of html.matchAll(/<(?:img|source)[^>]+(?:src|data-src|data-original|poster)=["']([^"']+)["'][^>]*>/gi)) {
+    candidates.push(match[1]);
+  }
 
-  const srcSets = [...html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)]
-    .flatMap((match) => match[1].split(",").map((part) => part.trim().split(/\s+/)[0]));
-  candidates.push(...srcSets);
+  for (const match of html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)) {
+    candidates.push(...match[1].split(",").map((part) => part.trim().split(/\s+/)[0]));
+  }
 
-  const preloads = [...html.matchAll(/<link[^>]+(?:rel=["'](?:preload|image_src)["'][^>]+)?(?:href|content)=["']([^"']+)["'][^>]*>/gi)]
-    .map((match) => match[1]);
-  candidates.push(...preloads);
+  const decoded = decodeHtml(html);
+  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>]+/gi)) {
+    const url = match[0].replace(/\\+$/g, "");
+    if (looksLikeImageUrl(url) || /(?:scontent|fbcdn|cdninstagram)/i.test(url)) candidates.push(url);
+  }
 
   const absoluteCandidates = candidates
     .map((value) => absoluteUrl(value, baseUrl))
     .filter((value): value is string => Boolean(value));
 
-  const genericUrls = [...html.matchAll(/https?:\\?\\?/gi)];
-  void genericUrls;
-
-  return absoluteCandidates.find(looksLikeImageUrl) ?? absoluteCandidates.find((url) => /(?:scontent|fbcdn|cdninstagram)/i.test(url)) ?? null;
+  return absoluteCandidates.find(looksLikeImageUrl)
+    ?? absoluteCandidates.find((url) => /(?:scontent|fbcdn|cdninstagram)/i.test(url))
+    ?? null;
 }
 
 function visibleText(html: string) {
@@ -88,20 +102,24 @@ function visibleText(html: string) {
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<[^>]*>/g, " ")
-      .replace(/\\u0026/g, "&")
-      .replace(/\\u003c/g, "<")
-      .replace(/\\u003e/g, ">")
       .replace(/\s+/g, " ")
       .trim(),
   );
 }
 
 function extractMembers(html: string) {
-  const text = visibleText(html);
-  const patterns = [/(\d[\d,\.\s]*)\s+members?/i, /members?\s*[:·-]?\s*(\d[\d,\.\s]*)/i];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
+  const candidates = [visibleText(html), decodeHtml(html)];
+  const patterns = [
+    /(\d[\d,\.\s]*)\s+members?/i,
+    /members?\s*[:·-]?\s*(\d[\d,\.\s]*)/i,
+    /member[_-]?count["'\s:=]+(\d+)/i,
+    /participants?["'\s:=]+(\d+)/i,
+  ];
+
+  for (const text of candidates) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (!match) continue;
       const value = Number(match[1].replace(/[^0-9]/g, ""));
       if (Number.isSafeInteger(value)) return value;
     }
@@ -110,28 +128,46 @@ function extractMembers(html: string) {
 }
 
 function cleanName(value: string) {
-  const name = decodeHtml(value).replace(/\\u0026/g, "&").replace(/\s+/g, " ").trim();
+  const name = decodeHtml(value)
+    .replace(/\\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!name || name.length > 120) return null;
   if (/^(you'?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
+  if (/^you(?:&apos;|')re invited to join/i.test(name)) return null;
   if (/^(instagram|group chat|use the instagram app)/i.test(name)) return null;
-  return name.replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "").trim() || null;
+  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
+  return name
+    .replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "")
+    .replace(/^\s*[•·|:-]\s*/, "")
+    .trim() || null;
 }
 
 function extractName(html: string) {
-  const directMeta = [meta(html, "og:title"), meta(html, "twitter:title")].filter((value): value is string => Boolean(value));
+  const directMeta = [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]
+    .filter((value): value is string => Boolean(value));
   for (const value of directMeta) {
     const name = cleanName(value);
     if (name) return name;
   }
 
-  const keyed = html.match(/(?:thread[_-]?title|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i)?.[1];
-  const keyedName = keyed ? cleanName(keyed) : null;
-  if (keyedName) return keyedName;
+  const keyPatterns = [
+    /(?:thread[_-]?title|thread[_-]?name|group[_-]?name|community[_-]?name)["'\s:=]+["']([^"']{2,120})["']/i,
+    /(?:title|name)["'\s:=]+["']([^"']{2,120})["'][\s\S]{0,600}?(?:member|participant)/i,
+  ];
+  for (const pattern of keyPatterns) {
+    const match = decodeHtml(html).match(pattern);
+    const name = match?.[1] ? cleanName(match[1]) : null;
+    if (name) return name;
+  }
 
   const text = visibleText(html);
-  const memberMatch = text.match(/(.{2,120})\s+(\d[\d,\.\s]*)\s+members?/i);
+  const memberMatch = text.match(/(.{2,120}?)\s+(\d[\d,\.\s]*)\s+members?/i);
   if (memberMatch) {
-    const before = memberMatch[1].trim().split(/\s{2,}|[|•]/).pop() ?? memberMatch[1];
+    const before = memberMatch[1]
+      .split(/(?:Use the Instagram app|You'?re invited|Instagram|\n|\r)/i)
+      .pop()
+      ?.trim() ?? memberMatch[1];
     const candidate = cleanName(before);
     if (candidate) return candidate;
   }
@@ -142,7 +178,7 @@ function extractName(html: string) {
   return headings.find((value) => !/members?/i.test(value)) ?? null;
 }
 
-async function fetchWithTimeout(url: string) {
+async function fetchHtml(url: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -150,9 +186,10 @@ async function fetchWithTimeout(url: string) {
       redirect: "follow",
       signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://www.instagram.com/",
       },
       cache: "no-store",
     });
@@ -161,29 +198,80 @@ async function fetchWithTimeout(url: string) {
   }
 }
 
-export async function resolveCommunityPreview(inviteUrl: string): Promise<CommunityPreview> {
+function instagramDirectUrl(inviteUrl: string) {
   try {
-    const response = await fetchWithTimeout(inviteUrl);
-    if (!response.ok) return { name: null, memberCount: null, imageUrl: null, finalUrl: response.url || null };
-    const html = await response.text();
-    const baseUrl = response.url || inviteUrl;
-    return {
-      name: extractName(html),
-      memberCount: extractMembers(html),
-      imageUrl: extractImage(html, baseUrl),
-      finalUrl: baseUrl,
-    };
+    const url = new URL(inviteUrl);
+    const match = url.pathname.match(/^\/j\/([^/]+)/i);
+    return match ? `https://www.instagram.com/j/${match[1]}/` : null;
   } catch {
-    return { name: null, memberCount: null, imageUrl: null, finalUrl: null };
+    return null;
+  }
+}
+
+async function fetchCandidateUrls(inviteUrl: string) {
+  const urls = [inviteUrl, instagramDirectUrl(inviteUrl)].filter((value): value is string => Boolean(value));
+  const seen = new Set<string>();
+
+  for (const url of urls) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    try {
+      const response = await fetchHtml(url);
+      if (!response.ok) continue;
+      const html = await response.text();
+      const baseUrl = response.url || url;
+      const preview = {
+        name: extractName(html),
+        memberCount: extractMembers(html),
+        imageUrl: extractImage(html, baseUrl),
+        finalUrl: baseUrl,
+      };
+      if (preview.name || preview.memberCount !== null || preview.imageUrl) return preview;
+    } catch {
+      // Try the next public candidate URL.
+    }
+  }
+
+  return EMPTY_PREVIEW;
+}
+
+export async function resolveCommunityPreview(inviteUrl: string): Promise<CommunityPreview> {
+  return fetchCandidateUrls(inviteUrl);
+}
+
+async function fetchImage(imageUrl: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(imageUrl, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        Referer: "https://www.instagram.com/",
+      },
+      cache: "no-store",
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
 export async function storeRemoteCommunityImage(imageUrl: string, ownerUserId: string) {
   try {
-    const response = await fetchWithTimeout(imageUrl);
+    const response = await fetchImage(imageUrl);
     if (!response.ok) return null;
     const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
-    const extension = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : contentType === "image/jpeg" ? "jpg" : null;
+    const extension = contentType === "image/png"
+      ? "png"
+      : contentType === "image/webp"
+        ? "webp"
+        : contentType === "image/avif"
+          ? "avif"
+          : contentType === "image/jpeg"
+            ? "jpg"
+            : null;
     if (!extension || !ownerUserId) return null;
     const contentLength = Number(response.headers.get("content-length") ?? "0");
     if (contentLength > MAX_IMAGE_BYTES) return null;
@@ -191,7 +279,11 @@ export async function storeRemoteCommunityImage(imageUrl: string, ownerUserId: s
     if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) return null;
     const path = `submissions/${ownerUserId}/${crypto.randomUUID()}.${extension}`;
     const admin = createAdminSupabaseClient();
-    const { error } = await admin.storage.from(COMMUNITY_IMAGE_BUCKET).upload(path, bytes, { contentType, cacheControl: "31536000", upsert: false });
+    const { error } = await admin.storage.from(COMMUNITY_IMAGE_BUCKET).upload(path, bytes, {
+      contentType,
+      cacheControl: "31536000",
+      upsert: false,
+    });
     return error ? null : path;
   } catch {
     return null;
