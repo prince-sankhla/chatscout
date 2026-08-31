@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAdminControlCenterData } from "@/features/moderation/data-access";
 import { requireAdminUser } from "@/lib/supabase/auth";
+import styles from "./owners.module.css";
 
 function dateLabel(value: string | null) {
   return value ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value)) : "Never";
@@ -24,20 +25,20 @@ export default async function AdminOwnersPage() {
         <section className="admin-section">
           <div className="admin-section-heading"><h2>Owners</h2><span>{dashboard.owners.length}</span></div>
           {dashboard.owners.length ? (
-            <div className="admin-owner-grid">
+            <div className={styles.grid}>
               {dashboard.owners.map((owner) => (
-                <article key={owner.userId} className="admin-owner-card">
-                  <div className="admin-owner-head">
+                <article key={owner.userId} className={styles.card}>
+                  <div className={styles.head}>
                     <div><span className="admin-status-badge published">Owner</span><h3>{owner.email ?? "Email unavailable"}</h3></div>
                     <strong>{owner.ctrRecent.toFixed(1)}% CTR</strong>
                   </div>
-                  <div className="admin-owner-metrics">
+                  <div className={styles.metrics}>
                     <div><b>{owner.listedCommunities}</b><span>Listed</span></div>
                     <div><b>{owner.pendingSubmissions}</b><span>Pending</span></div>
                     <div><b>{owner.totalViewsRecent.toLocaleString("en-IN")}</b><span>Views / 7d</span></div>
                     <div><b>{owner.totalJoinClicksRecent.toLocaleString("en-IN")}</b><span>Joins / 7d</span></div>
                   </div>
-                  <p className="admin-owner-foot">Last listed: {dateLabel(owner.lastListedAt)}</p>
+                  <p className={styles.foot}>Last listed: {dateLabel(owner.lastListedAt)}</p>
                 </article>
               ))}
             </div>
