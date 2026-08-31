@@ -28,6 +28,7 @@ export default async function OwnerDashboardPage() {
       <div className={styles.actions}>
         <Link className="primary-button list-button" href="/submit">List another community</Link>
         <Link className={styles.profileLink} href="/dashboard/profile">Profile</Link>
+        <Link className={styles.profileLink} href="/dashboard/notifications">Notifications</Link>
       </div>
     </header>
 
@@ -47,7 +48,7 @@ export default async function OwnerDashboardPage() {
           <h3>{community.name}</h3>
           <div className={styles.meta}>{community.member_count !== null ? `${community.member_count.toLocaleString("en-IN")} members` : "Member count unavailable"}{community.region ? ` · ${community.region}` : ""}</div>
           <div className={styles.analytics}><div><b>{community.views}</b><span>Views</span></div><div><b>{community.joins}</b><span>Joins</span></div><div><b>{community.ctr.toFixed(1)}%</b><span>CTR</span></div></div>
-          <Link className={styles.view} href={`/community/${community.slug}`}>View community →</Link>
+          <div className={styles.cardLinks}><Link className={styles.view} href={`/community/${community.slug}`}>View community →</Link><Link className={styles.view} href={`/dashboard/request-update?id=${encodeURIComponent(community.id)}`}>Request update</Link></div>
         </div>
       </article>)}</div> : <div className={styles.empty}><h3>No communities yet</h3><p>Your approved listings will appear here with performance data.</p><Link className="primary-button list-button" href="/submit">List your first community</Link></div>}
     </section>
