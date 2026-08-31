@@ -4,7 +4,7 @@ const TEST_URL = "https://ig.me/j/D1UJETnFFmQOFtWN/";
 
 async function inspect(url: string, headers: HeadersInit = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 25000);
   try {
     const response = await fetch(url, {
       redirect: "follow",
@@ -32,14 +32,17 @@ async function inspect(url: string, headers: HeadersInit = {}) {
   }
 }
 
-function snippets(text: string, term: string, count = 6) {
+function snippets(text: string, terms: string[], count = 4) {
   const out: string[] = [];
-  let from = 0;
-  while (out.length < count) {
-    const index = text.toLowerCase().indexOf(term.toLowerCase(), from);
-    if (index < 0) break;
-    out.push(text.slice(Math.max(0, index - 1000), Math.min(text.length, index + term.length + 1800)));
-    from = index + term.length;
+  const lower = text.toLowerCase();
+  for (const term of terms) {
+    let from = 0;
+    while (out.length < count) {
+      const index = lower.indexOf(term.toLowerCase(), from);
+      if (index < 0) break;
+      out.push(text.slice(Math.max(0, index - 1800), Math.min(text.length, index + term.length + 3200)));
+      from = index + term.length;
+    }
   }
   return out;
 }
@@ -56,10 +59,9 @@ function summarize(result: Awaited<ReturnType<typeof inspect>>) {
     imageUrls: [...result.text.matchAll(/https?:\/\/[^\s"'<>\])]+/gi)]
       .map((m) => m[0])
       .filter((v) => /(?:scontent|fbcdn|cdninstagram)|\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(v))
-      .slice(0, 25),
-    brainCells: snippets(result.text, "Brain Cells"),
-    members: snippets(result.text, "members"),
-    groupNameKeys: snippets(result.text, "group_name").concat(snippets(result.text, "thread_name"), snippets(result.text, "member_count")),
+      .slice(0, 40),
+    nameTerms: snippets(result.text, ["tea junction", "Brain Cells", "group name", "thread name", "chat name", "name"], 12),
+    memberTerms: snippets(result.text, ["47 members", "246 members", "members", "member_count", "memberCount", "participants"], 12),
   };
 }
 
@@ -76,7 +78,16 @@ export async function GET() {
     Accept: "application/json",
     "X-Retain-Images": "true",
     "X-No-Cache": "true",
-    "X-With-Generated-Alt": "true",
   });
-  return NextResponse.json({ testUrl: TEST_URL, direct: summarize(direct), instagram: summarize(instagram), jina: summarize(jina) }, { headers: { "cache-control": "no-store" } });
+  const microlink = await inspect(`https://api.microlink.io/?url=${encodeURIComponent(TEST_URL)}&meta=true&data.html.selector=body`, {
+    Accept: "application/json",
+    Referer: "https://microlink.io/",
+  });
+  return NextResponse.json({
+    testUrl: TEST_URL,
+    direct: summarize(direct),
+    instagram: summarize(instagram),
+    jina: summarize(jina),
+    microlink: summarize(microlink),
+  }, { headers: { "cache-control": "no-store" } });
 }
