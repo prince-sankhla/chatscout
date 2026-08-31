@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerAuthClient } from "@/lib/supabase/auth";
-import { resolveCommunityPreviewWithMicrolink } from "@/features/community-monitor/microlink";
+import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
 import { storeRemoteCommunityImage } from "@/features/community-monitor/resolver";
 
 function validInviteUrl(value: string) {
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const inviteUrl = typeof body.inviteUrl === "string" ? body.inviteUrl.trim() : "";
     if (!validInviteUrl(inviteUrl)) return NextResponse.json({ error: "Enter a valid Instagram group invite URL." }, { status: 400 });
 
-    const preview = await resolveCommunityPreviewWithMicrolink(inviteUrl);
+    const preview = await resolveRenderedCommunityPreview(inviteUrl);
     const imagePath = preview.imageUrl ? await storeRemoteCommunityImage(preview.imageUrl, user.id) : null;
 
     return NextResponse.json({
