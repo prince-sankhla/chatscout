@@ -79,44 +79,59 @@ function isImageUrl(url: string) {
     || /(?:scontent|fbcdn|cdninstagram)/i.test(url);
 }
 
-function extractImage(html: string, baseUrl: string) {
-  const candidates: Array<{ url: string; alt: string }> = [];
+function extractImage(html: string, baseUrl: string, communityName: string | null, memberCount: number | null) {
+  const candidates: Array<{ url: string; alt: string; index: number }> = [];
 
   for (const match of html.matchAll(/<(?:img|source)\b([^>]+)>/gi)) {
     const attrs = match[1];
     const src = attrs.match(/(?:src|data-src|data-original|poster)=["']([^"']+)["']/i)?.[1];
-    if (!src) continue;
     const alt = attrs.match(/alt=["']([^"']*)["']/i)?.[1] ?? "";
-    if (!isGenericAlt(alt)) candidates.push({ url: src, alt });
+    if (src && !isGenericAlt(alt)) candidates.push({ url: src, alt, index: match.index ?? 0 });
   }
 
   for (const match of html.matchAll(/(?:srcset|data-srcset)=["']([^"']+)["']/gi)) {
     for (const part of match[1].split(",")) {
       const src = part.trim().split(/\s+/)[0];
-      if (src) candidates.push({ url: src, alt: "" });
+      if (src) candidates.push({ url: src, alt: "", index: match.index ?? 0 });
     }
   }
 
   for (const match of html.matchAll(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi)) {
-    if (!isGenericAlt(match[1])) candidates.push({ url: match[2], alt: match[1] });
+    if (!isGenericAlt(match[1])) candidates.push({ url: match[2], alt: match[1], index: match.index ?? 0 });
   }
 
   const decoded = decodeHtml(html);
   for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\])]+/gi)) {
-    candidates.push({ url: match[0], alt: "" });
+    candidates.push({ url: match[0], alt: "", index: match.index ?? 0 });
   }
 
   candidates.push(
     ...[meta(html, "og:image"), meta(html, "og:image:url"), meta(html, "twitter:image"), meta(html, "twitter:image:src")]
       .filter((value): value is string => Boolean(value))
-      .map((url) => ({ url, alt: "" })),
+      .map((url) => ({ url, alt: "", index: Math.max(0, html.indexOf(url)) })),
   );
 
-  const absolute = candidates
-    .map(({ url, alt }) => ({ url: absoluteUrl(url, baseUrl), alt }))
-    .filter((candidate): candidate is { url: string; alt: string } => Boolean(candidate.url));
+  const memberMarker = memberCount === null ? -1 : html.search(new RegExp(`${String(memberCount).replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s+members?`, "i"));
+  const normalizedName = communityName?.replace(/\s+/g, " ").trim().toLowerCase() ?? "";
 
-  return absolute.find(({ url, alt }) => isImageUrl(url) && !isGenericAsset(url) && !isGenericAlt(alt))?.url ?? null;
+  const ranked = candidates
+    .map(({ url, alt, index }) => {
+      const absolute = absoluteUrl(url, baseUrl);
+      if (!absolute || !isImageUrl(absolute) || isGenericAsset(absolute) || isGenericAlt(alt)) return null;
+      const surrounding = html.slice(Math.max(0, index - 700), Math.min(html.length, index + 1500));
+      const haystack = `${alt} ${surrounding}`.toLowerCase();
+      let score = 0;
+      if (/(?:scontent|fbcdn|cdninstagram)/i.test(absolute)) score += 30;
+      if (normalizedName && haystack.includes(normalizedName)) score += 35;
+      if (memberMarker >= 0) score += Math.max(0, 35 - Math.abs(index - memberMarker) / 100);
+      if (alt && normalizedName && alt.toLowerCase().includes(normalizedName)) score += 30;
+      if (/(?:logo|icon|favicon|sprite|avatar-placeholder|app-icon)/i.test(`${absolute} ${alt}`)) score -= 60;
+      return { url: absolute, score };
+    })
+    .filter((value): value is { url: string; score: number } => Boolean(value))
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0]?.url ?? null;
 }
 
 function visibleText(html: string) {
@@ -132,13 +147,11 @@ function visibleText(html: string) {
 }
 
 function extractMembers(text: string) {
-  const patterns = [
+  for (const pattern of [
     /(\d[\d,\.\s]*)\s+members?/i,
     /members?\s*[:·-]?\s*(\d[\d,\.\s]*)/i,
     /(?:member[_-]?count|participants?)["'\s:=]+(\d[\d,\.\s]*)/i,
-  ];
-
-  for (const pattern of patterns) {
+  ]) {
     const match = text.match(pattern);
     if (!match) continue;
     const value = Number(match[1].replace(/[^0-9]/g, ""));
@@ -149,12 +162,14 @@ function extractMembers(text: string) {
 
 function cleanName(value: string) {
   const name = decodeHtml(value)
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^[>*`]+\s*/, "")
     .replace(/\\n/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!name || name.length > 120) return null;
   if (/^(?:you(?:'|&apos;)?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
-  if (/^(?:instagram|group chat|use the instagram app)$/i.test(name)) return null;
+  if (/^(?:instagram|group chat|use the instagram app|join instagram)$/i.test(name)) return null;
   if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
   const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
   if (/^(?:directgroup|directgrouplink|direct group link|community name)$/.test(normalized)) return null;
@@ -164,12 +179,28 @@ function cleanName(value: string) {
     .trim() || null;
 }
 
-function extractName(html: string, text: string) {
+function extractName(html: string, text: string, preferredTitle?: string | null) {
+  const lines = decodeHtml(text)
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/\d[\d,\.\s]*\s+members?/i.test(lines[index])) continue;
+    for (let back = 1; back <= 3; back += 1) {
+      const candidate = cleanName(lines[index - back] ?? "");
+      if (candidate) return candidate;
+    }
+  }
+
   const memberMatch = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i);
   if (memberMatch) {
     const candidate = cleanName(memberMatch[1]);
-    if (candidate && candidate.length <= 120) return candidate;
+    if (candidate) return candidate;
   }
+
+  const preferred = cleanName(preferredTitle ?? "");
+  if (preferred) return preferred;
 
   const titleCandidates = [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]
     .filter((value): value is string => Boolean(value));
@@ -190,25 +221,25 @@ function extractName(html: string, text: string) {
   return heading ?? null;
 }
 
-async function fetchHtml(url: string) {
+async function fetchHtml(url: string, jina = false) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const isJina = url.startsWith("https://r.jina.ai/");
     return await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36",
-        Accept: isJina ? "text/markdown,text/plain,text/html;q=0.9,*/*;q=0.8" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: jina ? "application/json,text/markdown,text/plain,text/html;q=0.9,*/*;q=0.8" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         Referer: "https://www.instagram.com/",
-        ...(isJina
+        ...(jina
           ? {
               "x-engine": "browser",
               "x-no-cache": "true",
               "x-retain-images": "true",
               "x-with-generated-alt": "true",
+              "x-base": "true",
             }
           : {}),
       },
@@ -233,15 +264,44 @@ function jinaReaderUrl(inviteUrl: string) {
   return `https://r.jina.ai/${inviteUrl}`;
 }
 
-async function fetchCandidate(url: string): Promise<CommunityPreview> {
-  const response = await fetchHtml(url);
+async function fetchCandidate(url: string, jina = false): Promise<CommunityPreview> {
+  const response = await fetchHtml(url, jina);
   if (!response.ok) return EMPTY_PREVIEW;
-  const html = await response.text();
-  const text = visibleText(html);
+  const raw = await response.text();
+
+  if (jina) {
+    try {
+      const payload = JSON.parse(raw) as { title?: string; content?: string; url?: string };
+      const content = payload.content ?? "";
+      const text = visibleText(content);
+      const memberCount = extractMembers(`${content}\n${text}`);
+      const name = extractName(content, content, payload.title ?? null);
+      return {
+        name,
+        memberCount,
+        imageUrl: extractImage(content, payload.url ?? url, name, memberCount),
+        finalUrl: payload.url ?? url,
+      };
+    } catch {
+      const text = visibleText(raw);
+      const memberCount = extractMembers(text);
+      const name = extractName(raw, raw);
+      return {
+        name,
+        memberCount,
+        imageUrl: extractImage(raw, response.url || url, name, memberCount),
+        finalUrl: response.url || url,
+      };
+    }
+  }
+
+  const text = visibleText(raw);
+  const memberCount = extractMembers(text);
+  const name = extractName(raw, text);
   return {
-    name: extractName(html, text),
-    memberCount: extractMembers(text),
-    imageUrl: extractImage(html, response.url || url),
+    name,
+    memberCount,
+    imageUrl: extractImage(raw, response.url || url, name, memberCount),
     finalUrl: response.url || url,
   };
 }
@@ -256,7 +316,7 @@ export async function resolveCommunityPreview(inviteUrl: string): Promise<Commun
   let merged = EMPTY_PREVIEW;
   for (const url of candidates) {
     try {
-      const preview = await fetchCandidate(url);
+      const preview = await fetchCandidate(url, url.startsWith("https://r.jina.ai/"));
       merged = {
         name: merged.name ?? preview.name,
         memberCount: merged.memberCount ?? preview.memberCount,
