@@ -79,8 +79,13 @@ function extractImage(html: string, baseUrl: string) {
     candidates.push(...match[1].split(",").map((part) => part.trim().split(/\s+/)[0]));
   }
 
+  // Jina Reader and similar browser-rendered readers commonly emit Markdown images.
+  for (const match of html.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)) {
+    candidates.push(match[1]);
+  }
+
   const decoded = decodeHtml(html);
-  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>]+/gi)) {
+  for (const match of decoded.matchAll(/https?:\/\/[^"'\s<>\])]+/gi)) {
     const url = match[0].replace(/\\+$/g, "");
     if (looksLikeImageUrl(url)) candidates.push(url);
   }
@@ -143,7 +148,7 @@ function cleanName(value: string) {
   if (/^(you'?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
   if (/^you(?:&apos;|')re invited to join/i.test(name)) return null;
   if (/^(instagram|group chat|use the instagram app)/i.test(name)) return null;
-  if /^\d[\d,\.\s]*\s+members?$/i.test(name) return null;
+  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
   const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
   if (/^(directgroup|directgrouplink|direct group link)$/.test(normalized)) return null;
   return name
@@ -243,9 +248,8 @@ async function fetchCandidateUrls(inviteUrl: string) {
         imageUrl: extractImage(html, baseUrl),
         finalUrl: baseUrl,
       };
-      // Don't stop on a generic image-only result. Keep trying for a real title/image.
-      const usefulName = preview.name && !isLikelyGenericInstagramAsset(preview.name);
-      const usefulImage = preview.imageUrl && !isLikelyGenericInstagramAsset(preview.imageUrl);
+      const usefulName = preview.name !== null;
+      const usefulImage = preview.imageUrl !== null && !isLikelyGenericInstagramAsset(preview.imageUrl);
       if (usefulName || preview.memberCount !== null || usefulImage) return preview;
     } catch {
       // Try the next public candidate URL.
