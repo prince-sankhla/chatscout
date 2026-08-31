@@ -106,22 +106,22 @@ function extractImage(html: string, baseUrl: string) {
       .map((url) => ({ url, alt: "" })),
   );
 
-  const absoluteCandidates = [...new Map(
-    candidates
-      .map(({ url, alt }) => [absoluteUrl(url, baseUrl), alt] as const)
-      .filter(([url]): url is string => Boolean(url)),
-  )];
+  const absoluteCandidates = candidates
+    .map(({ url, alt }) => ({ url: absoluteUrl(url, baseUrl), alt }))
+    .filter((candidate): candidate is { url: string; alt: string } => Boolean(candidate.url));
 
-  const nonGeneric = absoluteCandidates
-    .filter(([url, alt]) => !isLikelyGenericInstagramAsset(url) && !isLikelyGenericImageAlt(alt) && looksLikeImageUrl(url));
-  if (nonGeneric.length) return nonGeneric[0][0];
+  const nonGeneric = absoluteCandidates.find(
+    ({ url, alt }) => !isLikelyGenericInstagramAsset(url) && !isLikelyGenericImageAlt(alt) && looksLikeImageUrl(url),
+  );
+  if (nonGeneric) return nonGeneric.url;
 
-  const nonGenericCdn = absoluteCandidates.find(([url, alt]) =>
-    !isLikelyGenericInstagramAsset(url)
+  const nonGenericCdn = absoluteCandidates.find(
+    ({ url, alt }) =>
+      !isLikelyGenericInstagramAsset(url)
       && !isLikelyGenericImageAlt(alt)
       && /(?:scontent|fbcdn|cdninstagram)/i.test(url),
   );
-  return nonGenericCdn?.[0] ?? null;
+  return nonGenericCdn?.url ?? null;
 }
 
 function visibleText(html: string) {
@@ -283,7 +283,8 @@ async function fetchCandidateUrls(inviteUrl: string) {
   const memberCount = previews.map((preview) => preview.memberCount).find((value): value is number => typeof value === "number") ?? null;
   const imageUrl = previews
     .map((preview) => preview.imageUrl)
-    .find((value): value is string => Boolean(value) && !isLikelyGenericInstagramAsset(value)) ?? null;
+    .filter((value): value is string => Boolean(value))
+    .find((value) => !isLikelyGenericInstagramAsset(value) && !isLikelyGenericImageAlt(value)) ?? null;
   const finalUrl = previews.find((preview) => preview.name || preview.memberCount !== null || preview.imageUrl)?.finalUrl ?? null;
 
   if (name || memberCount !== null || imageUrl) {
