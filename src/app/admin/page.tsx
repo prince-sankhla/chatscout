@@ -1,31 +1,239 @@
-/* eslint-disable @next/next/no-img-element -- Images are served through private Supabase signed URLs. */
+/* eslint-disable @next/next/no-img-element -- Admin images use private Supabase signed URLs. */
+import Link from "next/link";
+import { CommunityEditForm } from "@/components/admin/community-edit-form";
+import { ConfirmActionButton } from "@/components/admin/confirm-action-button";
 import { logoutAdmin } from "@/features/auth/actions";
-import { approveSubmission, rejectSubmission } from "@/features/moderation/actions";
-import { getPendingSubmissions } from "@/features/moderation/data-access";
+import {
+  approveSubmission,
+  archiveCommunity,
+  deleteCommunity,
+  rejectSubmission,
+  requestChangesSubmission,
+  restoreCommunity,
+  setCommunityJoinEnabled,
+  unpublishCommunity,
+} from "@/features/moderation/actions";
+import { getAdminControlCenterData, type AdminCommunityItem, type AdminSubmissionItem } from "@/features/moderation/data-access";
 import { requireAdminUser } from "@/lib/supabase/auth";
-import { getPublishedCommunityImageUrl } from "@/lib/supabase/community-images";
 
-type AdminPageProps = { searchParams: Promise<{ status?: string }> };
+type AdminPageProps = { searchParams: Promise<{ status?: string; q?: string }> };
+
+const statusMessages: Record<string, { kind: "success" | "error"; text: string }> = {
+  approved: { kind: "success", text: "Community approved and published." },
+  rejected: { kind: "success", text: "Submission rejected." },
+  "changes-requested": { kind: "success", text: "Changes requested from submitter." },
+  updated: { kind: "success", text: "Community updated." },
+  archived: { kind: "success", text: "Community archived and hidden publicly." },
+  restored: { kind: "success", text: "Community restored and published." },
+  unpublished: { kind: "success", text: "Community unpublished." },
+  "join-enabled": { kind: "success", text: "Join CTA enabled." },
+  "join-disabled": { kind: "success", text: "Join CTA disabled." },
+  deleted: { kind: "success", text: "Community permanently deleted." },
+  invalid: { kind: "error", text: "That request is missing required admin details." },
+  "invalid-image": { kind: "error", text: "The replacement image could not be verified." },
+  "confirm-delete": { kind: "error", text: "Type DELETE before permanently deleting a community." },
+  failed: { kind: "error", text: "Unable to complete that admin action." },
+};
+
+function formatDate(value: string | null) {
+  return value ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Not set";
+}
+
+function metricLabel(value: number) {
+  return value.toLocaleString("en-IN");
+}
+
+function EmptyState({ label }: { label: string }) {
+  return <p className="admin-empty">{label}</p>;
+}
+
+function SubmissionCard({ submission, mode }: { submission: AdminSubmissionItem; mode: "pending" | "rejected" }) {
+  return (
+    <article className="admin-record-card">
+      <div className="admin-record-main">
+        {submission.imageUrl && <img className="admin-record-image" src={submission.imageUrl} alt={`${submission.community_name} submission`} />}
+        <div className="admin-record-heading">
+          <span className={`admin-status-badge ${submission.status}`}>{submission.status.replace("_", " ")}</span>
+          <h3>{submission.community_name}</h3>
+          <p>{submission.description}</p>
+        </div>
+        <dl className="admin-meta-grid">
+          <div><dt>Invite URL</dt><dd><a href={submission.invite_url} target="_blank" rel="noreferrer">Open Instagram invite</a></dd></div>
+          <div><dt>Category</dt><dd>{submission.category ?? "Not provided"}</dd></div>
+          <div><dt>Members</dt><dd>{submission.approximate_member_count?.toLocaleString("en-IN") ?? "Not provided"}</dd></div>
+          <div><dt>Language</dt><dd>{submission.language ?? "Not provided"}</dd></div>
+          <div><dt>Region</dt><dd>{submission.region ?? "Not provided"}</dd></div>
+          <div><dt>Submitter email</dt><dd>{submission.submitterEmail ?? "Unavailable"}</dd></div>
+          <div><dt>Submitted</dt><dd>{formatDate(submission.created_at)}</dd></div>
+          <div><dt>Reviewed</dt><dd>{formatDate(submission.reviewed_at)}</dd></div>
+        </dl>
+        <dl className="admin-meta-grid full">
+          <div><dt>Rules</dt><dd>{submission.community_rules ?? "Not provided"}</dd></div>
+          <div><dt>Age restriction</dt><dd>{submission.age_restriction ?? "Not provided"}</dd></div>
+          <div><dt>Eligibility</dt><dd>{submission.eligibility ?? "Not provided"}</dd></div>
+          <div><dt>Restrictions</dt><dd>{submission.restrictions ?? "Not provided"}</dd></div>
+          <div><dt>Review notes</dt><dd>{submission.review_notes ?? "No notes"}</dd></div>
+        </dl>
+      </div>
+      {mode === "pending" && (
+        <aside className="admin-actions-panel">
+          <form action={approveSubmission} className="review-form">
+            <input type="hidden" name="submissionId" value={submission.id} />
+            <label>Review notes<textarea name="reviewNotes" maxLength={2000} rows={3} /></label>
+            <button className="primary-button form-submit" type="submit">Approve & publish</button>
+          </form>
+          <form action={requestChangesSubmission} className="review-form">
+            <input type="hidden" name="submissionId" value={submission.id} />
+            <label>Change request<textarea name="reviewNotes" required maxLength={2000} rows={3} /></label>
+            <button className="admin-secondary" type="submit">Request changes</button>
+          </form>
+          <form action={rejectSubmission} className="review-form">
+            <input type="hidden" name="submissionId" value={submission.id} />
+            <label>Rejection note<textarea name="reviewNotes" maxLength={2000} rows={3} /></label>
+            <ConfirmActionButton className="admin-danger" message="Reject this submission?" type="submit">Reject</ConfirmActionButton>
+          </form>
+        </aside>
+      )}
+    </article>
+  );
+}
+
+function CommunityCard({ community, archived = false }: { community: AdminCommunityItem; archived?: boolean }) {
+  return (
+    <article className="admin-record-card">
+      <div className="admin-record-main">
+        {community.imageUrl && <img className="admin-record-image" src={community.imageUrl} alt={`${community.name} community`} />}
+        <div className="admin-record-heading">
+          <span className={`admin-status-badge ${community.status}`}>{community.status}</span>
+          <h3>{community.name}</h3>
+          <p>{community.description}</p>
+        </div>
+        <dl className="admin-meta-grid">
+          <div><dt>Category</dt><dd>{community.category ?? "Uncategorized"}</dd></div>
+          <div><dt>Members</dt><dd>{community.member_count?.toLocaleString("en-IN") ?? "Not provided"}</dd></div>
+          <div><dt>Platform</dt><dd>{community.platform}</dd></div>
+          <div><dt>Verification</dt><dd>{community.verification_status.replace("_", " ")}</dd></div>
+          <div><dt>Published</dt><dd>{formatDate(community.published_at)}</dd></div>
+          <div><dt>Last updated</dt><dd>{formatDate(community.updated_at)}</dd></div>
+          <div><dt>Recent joins</dt><dd>{metricLabel(community.joinClicksRecent)} in 7 days</dd></div>
+          <div><dt>Join CTA</dt><dd>{community.join_enabled ? "Enabled" : "Disabled"}</dd></div>
+          <div><dt>Owner email</dt><dd>{community.ownerEmail ?? "Unavailable"}</dd></div>
+          <div><dt>Source submitted</dt><dd>{formatDate(community.sourceSubmissionCreatedAt)}</dd></div>
+        </dl>
+        <details className="admin-edit-details">
+          <summary>Edit community</summary>
+          <CommunityEditForm community={community} />
+        </details>
+      </div>
+      <aside className="admin-actions-panel">
+        {community.status === "published" && <Link className="admin-secondary" href={`/community/${community.slug}`} target="_blank">View public page</Link>}
+        {community.status === "published" && (
+          <form action={setCommunityJoinEnabled}>
+            <input type="hidden" name="communityId" value={community.id} />
+            <input type="hidden" name="enabled" value={String(!community.join_enabled)} />
+            <button className="admin-secondary" type="submit">{community.join_enabled ? "Disable join" : "Enable join"}</button>
+          </form>
+        )}
+        {community.status === "published" && (
+          <form action={unpublishCommunity}>
+            <input type="hidden" name="communityId" value={community.id} />
+            <label>Note<textarea name="reviewNotes" maxLength={2000} rows={2} /></label>
+            <ConfirmActionButton className="admin-secondary" message="Unpublish this community?" type="submit">Unpublish</ConfirmActionButton>
+          </form>
+        )}
+        {community.status === "published" && (
+          <form action={archiveCommunity}>
+            <input type="hidden" name="communityId" value={community.id} />
+            <label>Archive note<textarea name="reviewNotes" maxLength={2000} rows={2} /></label>
+            <ConfirmActionButton className="admin-secondary" message="Archive this community?" type="submit">Archive</ConfirmActionButton>
+          </form>
+        )}
+        {archived && (
+          <form action={restoreCommunity}>
+            <input type="hidden" name="communityId" value={community.id} />
+            <label>Restore note<textarea name="reviewNotes" maxLength={2000} rows={2} /></label>
+            <ConfirmActionButton className="admin-secondary" message="Restore and publish this community?" type="submit">Restore</ConfirmActionButton>
+          </form>
+        )}
+        <form action={deleteCommunity}>
+          <input type="hidden" name="communityId" value={community.id} />
+          <label>Delete confirmation<input name="confirmDelete" placeholder="Type DELETE" /></label>
+          <label>Delete note<textarea name="reviewNotes" maxLength={2000} rows={2} /></label>
+          <ConfirmActionButton className="admin-danger" message="Permanently delete this community?" type="submit">Delete permanently</ConfirmActionButton>
+        </form>
+      </aside>
+    </article>
+  );
+}
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   await requireAdminUser();
-  const [submissions, { status }] = await Promise.all([getPendingSubmissions(), searchParams]);
-  const submissionsWithImages = submissions && await Promise.all(submissions.map(async (submission) => ({
-    submission,
-    imageUrl: await getPublishedCommunityImageUrl(submission.image_path),
-  })));
+  const { status, q = "" } = await searchParams;
+  const dashboard = await getAdminControlCenterData(q);
+  const message = status ? statusMessages[status] : null;
 
-  return <main className="admin-page">
-    <header className="admin-header"><div><p className="eyebrow">CHATSCOUT ADMIN</p><h1>Pending community submissions</h1></div><form action={logoutAdmin}><button className="admin-sign-out" type="submit">Sign out</button></form></header>
-    {status && <p className={`form-message ${status === "approved" || status === "rejected" ? "success" : "error"}`}>{status === "approved" ? "Community approved and published." : status === "rejected" ? "Submission rejected." : "Unable to complete that review action."}</p>}
-    {submissionsWithImages === null ? <p className="form-message error">Submissions are temporarily unavailable.</p> : submissionsWithImages.length === 0 ? <p className="form-message">No pending submissions.</p> : <section className="submission-list">{submissionsWithImages.map(({ submission, imageUrl }) => <article className="submission-card" key={submission.id}>
-      <div>
-        {imageUrl && <img className="admin-submission-image" src={imageUrl} alt={`${submission.community_name} submission`} />}
-        <h2>{submission.community_name}</h2><p>{submission.description}</p>
-        <dl><div><dt>Category</dt><dd>{submission.category ?? "—"}</dd></div><div><dt>Language</dt><dd>{submission.language ?? "—"}</dd></div><div><dt>Region</dt><dd>{submission.region ?? "—"}</dd></div><div><dt>Members</dt><dd>{submission.approximate_member_count?.toLocaleString("en-IN") ?? "—"}</dd></div><div><dt>Invite</dt><dd><a href={submission.invite_url} target="_blank" rel="noreferrer">Open Instagram invite</a></dd></div></dl>
-        {(submission.community_rules || submission.age_restriction || submission.eligibility || submission.restrictions) && <dl className="submission-guidelines"><div><dt>Rules</dt><dd>{submission.community_rules ?? "—"}</dd></div><div><dt>Age</dt><dd>{submission.age_restriction ?? "—"}</dd></div><div><dt>Eligibility</dt><dd>{submission.eligibility ?? "—"}</dd></div><div><dt>Restrictions</dt><dd>{submission.restrictions ?? "—"}</dd></div></dl>}
-      </div>
-      <form className="review-form"><input type="hidden" name="submissionId" value={submission.id} /><label>Review notes<textarea name="reviewNotes" maxLength={2000} rows={3} /></label><div><button className="primary-button form-submit" formAction={approveSubmission}>Approve &amp; publish</button><button className="admin-reject" formAction={rejectSubmission}>Reject</button></div></form>
-    </article>)}</section>}
-  </main>;
+  return (
+    <main className="admin-page">
+      <header className="admin-header">
+        <div>
+          <p className="eyebrow">CHATSCOUT ADMIN</p>
+          <h1>Control Center</h1>
+          <p>Moderate submissions, manage published communities, and protect the public directory.</p>
+        </div>
+        <form action={logoutAdmin}><button className="admin-sign-out" type="submit">Sign out</button></form>
+      </header>
+
+      {message && <p className={`form-message ${message.kind}`}>{message.text}</p>}
+      {!dashboard ? <p className="form-message error">Admin data is temporarily unavailable. Confirm the latest migrations are applied.</p> : (
+        <>
+          <section className="admin-overview-grid" aria-label="Admin overview">
+            <article><span>{metricLabel(dashboard.overview.publishedCommunities)}</span><p>Published communities</p></article>
+            <article><span>{metricLabel(dashboard.overview.pendingSubmissions)}</span><p>Pending submissions</p></article>
+            <article><span>{metricLabel(dashboard.overview.archivedCommunities)}</span><p>Archived communities</p></article>
+            <article><span>{metricLabel(dashboard.overview.rejectedSubmissions)}</span><p>Rejected submissions</p></article>
+            <article><span>{metricLabel(dashboard.overview.totalCommunities)}</span><p>Total communities</p></article>
+            <article><span>{metricLabel(dashboard.overview.recentJoinClicks)}</span><p>Join clicks, 7 days</p></article>
+          </section>
+
+          <form className="admin-search" action="/admin">
+            <label htmlFor="admin-search">Search admin records</label>
+            <div><input id="admin-search" name="q" defaultValue={q} placeholder="Search by name, category, city, language, invite..." /><button className="admin-secondary" type="submit">Search</button></div>
+          </form>
+
+          <nav className="admin-tabs" aria-label="Admin sections">
+            <a href="#pending">Pending</a>
+            <a href="#published">Published</a>
+            <a href="#archived">Archived</a>
+            <a href="#rejected">Rejected</a>
+            <a href="#audit">Audit</a>
+          </nav>
+
+          <section id="pending" className="admin-section">
+            <div className="admin-section-heading"><h2>Pending submissions</h2><span>{dashboard.pending.length}</span></div>
+            {dashboard.pending.length ? dashboard.pending.map((submission) => <SubmissionCard key={submission.id} submission={submission} mode="pending" />) : <EmptyState label="No pending submissions match this view." />}
+          </section>
+
+          <section id="published" className="admin-section">
+            <div className="admin-section-heading"><h2>Published communities</h2><span>{dashboard.published.length}</span></div>
+            {dashboard.published.length ? dashboard.published.map((community) => <CommunityCard key={community.id} community={community} />) : <EmptyState label="No published communities match this view." />}
+          </section>
+
+          <section id="archived" className="admin-section">
+            <div className="admin-section-heading"><h2>Archived and unpublished</h2><span>{dashboard.archived.length + dashboard.unpublished.length}</span></div>
+            {[...dashboard.archived, ...dashboard.unpublished].length ? [...dashboard.archived, ...dashboard.unpublished].map((community) => <CommunityCard key={community.id} community={community} archived />) : <EmptyState label="No archived or unpublished communities match this view." />}
+          </section>
+
+          <section id="rejected" className="admin-section">
+            <div className="admin-section-heading"><h2>Rejected and changes requested</h2><span>{dashboard.rejected.length}</span></div>
+            {dashboard.rejected.length ? dashboard.rejected.map((submission) => <SubmissionCard key={submission.id} submission={submission} mode="rejected" />) : <EmptyState label="No rejected submissions match this view." />}
+          </section>
+
+          <section id="audit" className="admin-section">
+            <div className="admin-section-heading"><h2>Recent audit trail</h2><span>{dashboard.auditLog.length}</span></div>
+            {dashboard.auditLog.length ? <div className="admin-audit-list">{dashboard.auditLog.map((entry) => <article key={entry.id}><b>{entry.action.replace("_", " ")}</b><span>{formatDate(entry.created_at)}</span><p>{entry.note ?? "No note"}</p><small>{entry.community_id ?? entry.submission_id}</small></article>)}</div> : <EmptyState label="No admin actions recorded yet." />}
+          </section>
+        </>
+      )}
+    </main>
+  );
 }

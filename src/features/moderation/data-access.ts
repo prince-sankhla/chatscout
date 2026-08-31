@@ -1,15 +1,195 @@
 import "server-only";
+
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import type { Database } from "@/types/database";
+import { getPublishedCommunityImageUrl } from "@/lib/supabase/community-images";
+import type { CommunityRow, Database } from "@/types/database";
 
-export type PendingSubmission = Database["public"]["Tables"]["submissions"]["Row"];
+export type SubmissionRow = Database["public"]["Tables"]["submissions"]["Row"];
+export type AuditLogRow = Database["public"]["Tables"]["admin_audit_log"]["Row"];
 
-export async function getPendingSubmissions() {
+export type AdminSubmissionItem = SubmissionRow & {
+  imageUrl: string | null;
+  submitterEmail: string | null;
+};
+
+export type AdminCommunityItem = CommunityRow & {
+  category: string | null;
+  imageUrl: string | null;
+  ownerEmail: string | null;
+  sourceSubmissionCreatedAt: string | null;
+  joinClicksRecent: number;
+};
+
+export type AdminDashboardData = {
+  overview: {
+    publishedCommunities: number;
+    pendingSubmissions: number;
+    archivedCommunities: number;
+    rejectedSubmissions: number;
+    totalCommunities: number;
+    recentJoinClicks: number;
+  };
+  pending: AdminSubmissionItem[];
+  published: AdminCommunityItem[];
+  archived: AdminCommunityItem[];
+  unpublished: AdminCommunityItem[];
+  rejected: AdminSubmissionItem[];
+  auditLog: AuditLogRow[];
+};
+
+const RECENT_ACTIVITY_DAYS = 7;
+const LIST_LIMIT = 80;
+
+function includesQuery(values: Array<string | number | null | undefined>, query: string) {
+  if (!query) return true;
+  const needle = query.toLowerCase();
+  return values.some((value) => String(value ?? "").toLowerCase().includes(needle));
+}
+
+async function userEmailById(userId: string | null) {
+  if (!userId) return null;
   const supabase = createAdminSupabaseClient();
-  const { data, error } = await supabase
+  const { data, error } = await supabase.auth.admin.getUserById(userId);
+  if (error) return null;
+  return data.user?.email ?? null;
+}
+
+async function withSubmissionAdminFields(submissions: SubmissionRow[], query: string) {
+  const filtered = submissions.filter((submission) => includesQuery([
+    submission.community_name,
+    submission.category,
+    submission.description,
+    submission.region,
+    submission.language,
+    submission.invite_url,
+  ], query));
+
+  return Promise.all(filtered.map(async (submission) => ({
+    ...submission,
+    imageUrl: await getPublishedCommunityImageUrl(submission.image_path),
+    submitterEmail: await userEmailById(submission.submitter_user_id),
+  })));
+}
+
+async function categoryMapForCommunities(communityIds: string[]) {
+  if (!communityIds.length) return new Map<string, string>();
+  const supabase = createAdminSupabaseClient();
+  const { data: links } = await supabase
+    .from("community_categories")
+    .select("community_id, category_id")
+    .in("community_id", communityIds);
+  const categoryIds = [...new Set((links ?? []).map((link) => link.category_id))];
+  if (!categoryIds.length) return new Map<string, string>();
+  const { data: categories } = await supabase.from("categories").select("id, name").in("id", categoryIds);
+  const names = new Map((categories ?? []).map((category) => [category.id, category.name]));
+  return new Map((links ?? []).map((link) => [link.community_id, names.get(link.category_id) ?? null]).filter((entry): entry is [string, string] => Boolean(entry[1])));
+}
+
+async function sourceSubmissionMeta(communities: CommunityRow[]) {
+  const sourceIds = [...new Set(communities.map((community) => community.source_submission_id).filter((id): id is string => Boolean(id)))];
+  if (!sourceIds.length) return new Map<string, { createdAt: string | null; email: string | null }>();
+  const supabase = createAdminSupabaseClient();
+  const { data: submissions } = await supabase
     .from("submissions")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
-  return error ? null : data;
+    .select("id, created_at, submitter_user_id")
+    .in("id", sourceIds);
+  const entries = await Promise.all((submissions ?? []).map(async (submission) => [
+    submission.id,
+    { createdAt: submission.created_at, email: await userEmailById(submission.submitter_user_id) },
+  ] as const));
+  return new Map(entries);
+}
+
+async function joinClickCounts(communityIds: string[]) {
+  if (!communityIds.length) return new Map<string, number>();
+  const since = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const supabase = createAdminSupabaseClient();
+  const { data } = await supabase
+    .from("analytics_events")
+    .select("community_id")
+    .eq("event_name", "join_click")
+    .gte("occurred_at", since)
+    .in("community_id", communityIds)
+    .limit(1_000);
+  const counts = new Map<string, number>();
+  for (const event of data ?? []) {
+    if (event.community_id) counts.set(event.community_id, (counts.get(event.community_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+async function withCommunityAdminFields(communities: CommunityRow[], query: string) {
+  const filtered = communities.filter((community) => includesQuery([
+    community.name,
+    community.description,
+    community.region,
+    community.language,
+    community.platform,
+    community.verification_status,
+  ], query));
+  const ids = filtered.map((community) => community.id);
+  const [categories, sources, joins] = await Promise.all([categoryMapForCommunities(ids), sourceSubmissionMeta(filtered), joinClickCounts(ids)]);
+
+  return Promise.all(filtered.map(async (community) => {
+    const source = community.source_submission_id ? sources.get(community.source_submission_id) : null;
+    return {
+      ...community,
+      category: categories.get(community.id) ?? null,
+      imageUrl: await getPublishedCommunityImageUrl(community.image_path),
+      ownerEmail: await userEmailById(community.owner_user_id) ?? source?.email ?? null,
+      sourceSubmissionCreatedAt: source?.createdAt ?? null,
+      joinClicksRecent: joins.get(community.id) ?? 0,
+    };
+  }));
+}
+
+export async function getAdminControlCenterData(searchTerm = ""): Promise<AdminDashboardData | null> {
+  const supabase = createAdminSupabaseClient();
+  const since = new Date(Date.now() - RECENT_ACTIVITY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const [
+    totalCommunities,
+    publishedCommunities,
+    archivedCommunities,
+    pendingSubmissions,
+    rejectedSubmissions,
+    recentJoinClicks,
+    pending,
+    rejected,
+    published,
+    archived,
+    unpublished,
+    auditLog,
+  ] = await Promise.all([
+    supabase.from("communities").select("id", { count: "exact", head: true }),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "archived"),
+    supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("submissions").select("id", { count: "exact", head: true }).in("status", ["rejected", "needs_changes"]),
+    supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "join_click").gte("occurred_at", since),
+    supabase.from("submissions").select("*").eq("status", "pending").order("created_at", { ascending: true }).limit(LIST_LIMIT),
+    supabase.from("submissions").select("*").in("status", ["rejected", "needs_changes"]).order("updated_at", { ascending: false }).limit(LIST_LIMIT),
+    supabase.from("communities").select("*").eq("status", "published").order("published_at", { ascending: false }).limit(LIST_LIMIT),
+    supabase.from("communities").select("*").eq("status", "archived").order("archived_at", { ascending: false }).limit(LIST_LIMIT),
+    supabase.from("communities").select("*").in("status", ["draft", "suspended"]).order("updated_at", { ascending: false }).limit(LIST_LIMIT),
+    supabase.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(20),
+  ]);
+
+  if (pending.error || rejected.error || published.error || archived.error || unpublished.error || auditLog.error) return null;
+
+  return {
+    overview: {
+      publishedCommunities: publishedCommunities.count ?? 0,
+      pendingSubmissions: pendingSubmissions.count ?? 0,
+      archivedCommunities: archivedCommunities.count ?? 0,
+      rejectedSubmissions: rejectedSubmissions.count ?? 0,
+      totalCommunities: totalCommunities.count ?? 0,
+      recentJoinClicks: recentJoinClicks.count ?? 0,
+    },
+    pending: await withSubmissionAdminFields(pending.data ?? [], searchTerm),
+    published: await withCommunityAdminFields(published.data ?? [], searchTerm),
+    archived: await withCommunityAdminFields(archived.data ?? [], searchTerm),
+    unpublished: await withCommunityAdminFields(unpublished.data ?? [], searchTerm),
+    rejected: await withSubmissionAdminFields(rejected.data ?? [], searchTerm),
+    auditLog: auditLog.data ?? [],
+  };
 }
