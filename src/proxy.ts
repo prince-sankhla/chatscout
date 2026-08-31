@@ -21,7 +21,9 @@ export async function proxy(request: NextRequest) {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !isAuthorizedAdmin(user.id)) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
+    const loginUrl = new URL("/admin/login", request.url);
+    loginUrl.searchParams.set("error", user ? "unauthorized" : "session");
+    return NextResponse.redirect(loginUrl);
   }
   return response;
 }
