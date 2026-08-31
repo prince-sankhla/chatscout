@@ -9,37 +9,18 @@ export type CommunityQueryResult<T> =
   | { data: null; error: { code: "COMMUNITY_QUERY_FAILED"; message: string } };
 
 export type CommunitySort = "newest" | "members";
-
-export type PublishedCommunityFilters = {
-  categorySlug?: string;
-  platform?: "instagram";
-  sort?: CommunitySort;
-};
+export type PublishedCommunityFilters = { categorySlug?: string; platform?: "instagram"; sort?: CommunitySort };
 
 const MAX_SEARCH_RESULTS = 50;
 const TRENDING_WINDOW_DAYS = 7;
 
-function normalizeSearchTerm(term: string) {
-  return term.trim().replace(/[%_(),.]/g, " ").replace(/\s+/g, " ").slice(0, 100);
-}
-
-function queryFailure<T>(error: PostgrestError, message: string): CommunityQueryResult<T> {
-  void error;
-  return { data: null, error: { code: "COMMUNITY_QUERY_FAILED", message } };
-}
-
-function orderColumn(sort: CommunitySort = "newest") {
-  return sort === "members" ? "member_count" : "published_at";
-}
+function normalizeSearchTerm(term: string) { return term.trim().replace(/[%_(),.]/g, " ").replace(/\s+/g, " ").slice(0, 100); }
+function queryFailure<T>(error: PostgrestError, message: string): CommunityQueryResult<T> { void error; return { data: null, error: { code: "COMMUNITY_QUERY_FAILED", message } }; }
+function orderColumn(sort: CommunitySort = "newest") { return sort === "members" ? "member_count" : "published_at"; }
 
 export async function getActiveCategories(): Promise<CommunityQueryResult<CategoryRow[]>> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const { data, error } = await supabase.from("categories").select("*").eq("is_active", true).order("sort_order", { ascending: true }).order("name", { ascending: true });
   if (error) return queryFailure(error, "Unable to load categories.");
   return { data: data ?? [], error: null };
 }
@@ -47,17 +28,10 @@ export async function getActiveCategories(): Promise<CommunityQueryResult<Catego
 async function communityIdsForCategory(categorySlug?: string) {
   if (!categorySlug) return { ids: undefined as string[] | undefined, error: null as PostgrestError | null };
   const supabase = createServerSupabaseClient();
-  const { data: category, error: categoryError } = await supabase
-    .from("categories")
-    .select("id")
-    .eq("slug", categorySlug)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (categoryError || !category) return { ids: category ? [] : undefined, error: categoryError };
-  const { data: joins, error: joinError } = await supabase
-    .from("community_categories")
-    .select("community_id")
-    .eq("category_id", category.id);
+  const { data: category, error: categoryError } = await supabase.from("categories").select("id").eq("slug", categorySlug).eq("is_active", true).maybeSingle();
+  if (categoryError) return { ids: undefined, error: categoryError };
+  if (!category) return { ids: [] as string[], error: null as PostgrestError | null };
+  const { data: joins, error: joinError } = await supabase.from("community_categories").select("community_id").eq("category_id", category.id);
   if (joinError) return { ids: undefined, error: joinError };
   return { ids: joins.map((join) => join.community_id), error: null };
 }
@@ -67,12 +41,7 @@ export async function getPublishedCommunities(filters: PublishedCommunityFilters
   const category = await communityIdsForCategory(filters.categorySlug);
   if (category.error) return queryFailure(category.error, "Unable to load communities.");
   if (category.ids && category.ids.length === 0) return { data: [], error: null };
-
-  let query = supabase
-    .from("communities")
-    .select("*")
-    .eq("status", "published")
-    .order(orderColumn(filters.sort), { ascending: false, nullsFirst: false });
+  let query = supabase.from("communities").select("*").eq("status", "published").order(orderColumn(filters.sort), { ascending: false, nullsFirst: false });
   if (filters.sort === "members") query = query.order("published_at", { ascending: false });
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (category.ids) query = query.in("id", category.ids);
@@ -84,21 +53,11 @@ export async function getPublishedCommunities(filters: PublishedCommunityFilters
 export async function getTrendingPublishedCommunities(filters: Omit<PublishedCommunityFilters, "sort"> = {}, limit = 12): Promise<CommunityQueryResult<CommunityRow[]>> {
   const published = await getPublishedCommunities({ categorySlug: filters.categorySlug, platform: filters.platform, sort: "newest" });
   if (published.error || !published.data.length) return published.error ? { data: null, error: published.error } : { data: [], error: null };
-
   const ids = published.data.map((community) => community.id);
   const since = new Date(Date.now() - TRENDING_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const analytics = createAdminSupabaseClient();
-  const { data: events, error } = await analytics
-    .from("analytics_events")
-    .select("community_id,event_name")
-    .in("community_id", ids)
-    .gte("occurred_at", since)
-    .in("event_name", ["community_view", "join_click"])
-    .limit(20_000);
-  if (error) {
-    return { data: published.data.slice(0, limit), error: null };
-  }
-
+  const { data: events, error } = await analytics.from("analytics_events").select("community_id,event_name").in("community_id", ids).gte("occurred_at", since).in("event_name", ["community_view", "join_click"]).limit(20_000);
+  if (error) return { data: published.data.slice(0, limit), error: null };
   const scores = new Map<string, { views: number; joins: number }>();
   for (const event of events ?? []) {
     if (!event.community_id) continue;
@@ -107,7 +66,6 @@ export async function getTrendingPublishedCommunities(filters: Omit<PublishedCom
     if (event.event_name === "join_click") current.joins += 1;
     scores.set(event.community_id, current);
   }
-
   const ranked = [...published.data].sort((a, b) => {
     const left = scores.get(a.id) ?? { views: 0, joins: 0 };
     const right = scores.get(b.id) ?? { views: 0, joins: 0 };
@@ -116,7 +74,6 @@ export async function getTrendingPublishedCommunities(filters: Omit<PublishedCom
     if (scoreB !== scoreA) return scoreB - scoreA;
     return new Date(b.published_at ?? b.created_at).getTime() - new Date(a.published_at ?? a.created_at).getTime();
   });
-
   return { data: ranked.slice(0, Math.max(1, Math.min(limit, MAX_SEARCH_RESULTS))), error: null };
 }
 
@@ -147,7 +104,6 @@ export async function searchPublishedCommunities(term: string, filters: Omit<Pub
   const category = await communityIdsForCategory(filters.categorySlug);
   if (category.error) return queryFailure(category.error, "Unable to search communities.");
   if (category.ids && category.ids.length === 0) return { data: [], error: null };
-
   const supabase = createServerSupabaseClient();
   if (!searchTerm) return getPublishedCommunities(filters);
   const pattern = `%${searchTerm}%`;
@@ -157,7 +113,6 @@ export async function searchPublishedCommunities(term: string, filters: Omit<Pub
   ]);
   if (textError) return queryFailure(textError, "Unable to search communities.");
   if (categoryError) return queryFailure(categoryError, "Unable to search communities.");
-
   let categoryMatches: CommunityRow[] = [];
   if (categories.length) {
     const { data: categoryLinks, error: linkError } = await supabase.from("community_categories").select("community_id").in("category_id", categories.map((category) => category.id));
@@ -169,7 +124,6 @@ export async function searchPublishedCommunities(term: string, filters: Omit<Pub
       categoryMatches = data ?? [];
     }
   }
-
   let matches = [...new Map([...textMatches, ...categoryMatches].map((community) => [community.id, community])).values()];
   if (category.ids) {
     const allowed = new Set(category.ids);
