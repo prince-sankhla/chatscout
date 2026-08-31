@@ -1,13 +1,28 @@
 /**
- * Deployment-configured allowlist for the small V1 admin surface.
- *
- * Keep this value server-only. It contains Supabase Auth user IDs, separated
- * by commas, and is intentionally not a general-purpose role system.
+ * Deployment-configured admin allowlist. Keep these user IDs server-only.
  */
-export function isAuthorizedAdmin(userId: string): boolean {
-  const allowedUserIds = process.env.SUPABASE_ADMIN_USER_IDS?.split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+function configuredUserIds(value: string | undefined) {
+  return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
+}
 
-  return allowedUserIds?.includes(userId) ?? false;
+export function isAuthorizedAdmin(userId: string): boolean {
+  return configuredUserIds(process.env.SUPABASE_ADMIN_USER_IDS).includes(userId);
+}
+
+/** Controller has platform-wide authority above regular moderators. */
+export function isControllerUser(userId: string): boolean {
+  const controllers = configuredUserIds(process.env.SUPABASE_CONTROLLER_USER_IDS);
+  if (controllers.includes(userId)) return true;
+
+  // Safe V1 fallback: when no dedicated controller allowlist exists,
+  // the first configured admin remains the controller so the existing
+  // deployment does not unexpectedly lose its highest-privilege user.
+  const admins = configuredUserIds(process.env.SUPABASE_ADMIN_USER_IDS);
+  return !controllers.length && admins[0] === userId;
+}
+
+export type AdminRole = "controller" | "admin";
+
+export function getAdminRole(userId: string): AdminRole {
+  return isControllerUser(userId) ? "controller" : "admin";
 }
