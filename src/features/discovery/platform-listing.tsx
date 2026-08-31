@@ -3,7 +3,7 @@ import { CommunityGrid } from "@/components/community/community-grid";
 import { DiscoveryFilters } from "@/components/discovery/discovery-filters";
 import { SearchForm } from "@/components/discovery/search-form";
 import { Reveal } from "@/components/ui/reveal";
-import { getPublishedCommunities, searchPublishedCommunities } from "@/features/communities/data-access";
+import { getPublishedCommunities, getTrendingPublishedCommunities, searchPublishedCommunities } from "@/features/communities/data-access";
 import { toCommunityPresentation } from "@/features/communities/presentation";
 
 type ListingKind = "search" | "trending" | "new";
@@ -16,17 +16,18 @@ type ListingProps = {
 };
 
 export async function PlatformListing({ kind, query = "", category = "", sort = "newest" }: ListingProps) {
-  const filters = { categorySlug: category || undefined, sort };
   const result = kind === "search"
-    ? await searchPublishedCommunities(query, filters)
-    : await getPublishedCommunities(filters);
+    ? await searchPublishedCommunities(query, { categorySlug: category || undefined, sort })
+    : kind === "trending"
+      ? await getTrendingPublishedCommunities({ categorySlug: category || undefined }, 24)
+      : await getPublishedCommunities({ categorySlug: category || undefined, sort: sort === "members" ? "members" : "newest" });
   const communities = result.data ? await Promise.all(result.data.map(toCommunityPresentation)) : [];
   const title = kind === "search" ? "Search communities" : kind === "trending" ? "Trending communities" : "New communities";
   const subtitle = kind === "search" && query
     ? `Results for “${query}”`
     : kind === "trending"
-      ? "Find active Instagram group chats worth joining."
-      : "Freshly published Instagram group chats.";
+      ? "What people are discovering and joining right now."
+      : "The latest published Instagram group chats.";
   const resultCount = communities.length;
 
   return (
@@ -41,7 +42,7 @@ export async function PlatformListing({ kind, query = "", category = "", sort = 
       <div className="listing-toolbar">
         <div>
           <strong>{resultCount ? `${resultCount} communities` : "No communities"}</strong>
-          <span>Public listings only</span>
+          <span>{kind === "trending" ? "Ranked by recent views + joins" : "Published listings only"}</span>
         </div>
         <DiscoveryFilters category={category} sort={sort} />
       </div>
