@@ -30,7 +30,9 @@ export async function requestCommunityUpdate(formData: FormData) {
 
   const memberCountRaw = textValue(formData, "memberCount", 12);
   const memberCount = memberCountRaw === null ? null : Number(memberCountRaw);
-  if (memberCountRaw !== null && (!Number.isInteger(memberCount) || memberCount < 0)) redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=members`);
+  if (memberCountRaw !== null && (memberCount === null || !Number.isInteger(memberCount) || memberCount < 0)) {
+    redirect(`/dashboard/request-update?id=${encodeURIComponent(communityId)}&error=members`);
+  }
 
   const payload = {
     name: textValue(formData, "name", 120, true),
