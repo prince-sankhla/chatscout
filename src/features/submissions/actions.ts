@@ -33,6 +33,10 @@ export async function submitCommunity(formData: FormData) {
   const language = textValue(formData, "language", 80);
   const region = textValue(formData, "region", 120);
   const contact = textValue(formData, "contact", 200);
+  const communityRules = textValue(formData, "communityRules", 2_000);
+  const ageRestriction = textValue(formData, "ageRestriction", 120);
+  const eligibility = textValue(formData, "eligibility", 500);
+  const restrictions = textValue(formData, "restrictions", 1_000);
   const memberCountValue = textValue(formData, "memberCount", 12);
   const memberCount = memberCountValue ? Number(memberCountValue) : null;
   const imagePath = textValue(formData, "imagePath", 200);
@@ -40,7 +44,7 @@ export async function submitCommunity(formData: FormData) {
   if (!communityName || !inviteUrl || !description || !categoryName) redirect("/submit?error=required");
   if (!isInstagramInviteUrl(inviteUrl)) redirect("/submit?error=url");
   if (memberCount !== null && (!Number.isInteger(memberCount) || memberCount < 0)) redirect("/submit?error=members");
-  if (imagePath && (!isSubmissionImagePath(imagePath, user.id) || !(await storedSubmissionImageExists(imagePath)))) {
+  if (!imagePath || !isSubmissionImagePath(imagePath, user.id) || !(await storedSubmissionImageExists(imagePath))) {
     redirect("/submit?error=image");
   }
 
@@ -54,7 +58,11 @@ export async function submitCommunity(formData: FormData) {
     approximate_member_count: memberCount,
     submitter_contact: contact,
     submitter_user_id: user.id,
-    ...(imagePath ? { image_path: imagePath } : {}),
+    image_path: imagePath,
+    community_rules: communityRules,
+    age_restriction: ageRestriction,
+    eligibility,
+    restrictions,
   };
   const { error } = await supabase.from("submissions").insert(submission);
   if (error) {

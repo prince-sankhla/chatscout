@@ -3,7 +3,8 @@ import { createServerAuthClient } from "@/lib/supabase/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { COMMUNITY_IMAGE_BUCKET } from "@/lib/supabase/community-images";
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Keep uploads within Vercel's request body ceiling with multipart overhead.
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const imageTypes = {
   "image/jpeg": { extension: "jpg", signature: [0xff, 0xd8, 0xff] },
   "image/png": { extension: "png", signature: [0x89, 0x50, 0x4e, 0x47] },
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const image = formData.get("image");
   if (!(image instanceof File) || image.size === 0 || image.size > MAX_IMAGE_BYTES || !(image.type in imageTypes)) {
-    return NextResponse.json({ error: "Choose a JPG, PNG, or WebP image up to 5 MB." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a JPG, PNG, or WebP image up to 4 MB." }, { status: 400 });
   }
 
   const bytes = new Uint8Array(await image.arrayBuffer());
@@ -38,6 +39,6 @@ export async function POST(request: NextRequest) {
     cacheControl: "31536000",
     upsert: false,
   });
-  if (error) return NextResponse.json({ error: "Image upload is temporarily unavailable." }, { status: 503 });
+  if (error) return NextResponse.json({ error: "Image upload could not be completed. Please try a smaller image." }, { status: 503 });
   return NextResponse.json({ path });
 }
