@@ -64,7 +64,13 @@ function looksLikeImageUrl(value: string) {
 }
 
 function isLikelyGenericInstagramAsset(value: string) {
-  return /(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)/i.test(value);
+  try {
+    const url = new URL(value);
+    const haystack = `${url.hostname}${url.pathname}`.toLowerCase();
+    return /(?:^|[\/_-])(?:instagram(?:-logo|-icon)?|meta-logo|app-icon|favicon|glyph|threads-logo)(?:[\/_-.]|$)/i.test(haystack);
+  } catch {
+    return /(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo)/i.test(value);
+  }
 }
 
 function isLikelyGenericImageAlt(value: string) {
@@ -185,6 +191,10 @@ function extractName(html: string) {
     const candidate = cleanName(before);
     if (candidate) return candidate;
   }
+
+  const markdownHeading = html.match(/^#{1,6}\s+([^\n]{2,120})$/m)?.[1];
+  const markdownName = markdownHeading ? cleanName(markdownHeading) : null;
+  if (markdownName) return markdownName;
 
   const directMeta = [meta(html, "og:title"), meta(html, "twitter:title"), meta(html, "title")]
     .filter((value): value is string => Boolean(value));
