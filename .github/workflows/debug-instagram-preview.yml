@@ -1,0 +1,87 @@
+name: Debug Instagram preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect public invite sources
+        run: |
+          node <<'NODE'
+          const urls = [
+            ['direct', 'https://ig.me/j/D1UJETnFFmQOFtWN/'],
+            ['instagram', 'https://www.instagram.com/j/D1UJETnFFmQOFtWN/'],
+            ['jina', 'https://r.jina.ai/https://ig.me/j/D1UJETnFFmQOFtWN/'],
+            ['microlink', 'https://api.microlink.io/?url=' + encodeURIComponent('https://ig.me/j/D1UJETnFFmQOFtWN/') + '&meta=true&data.html.selector=body']
+          ];
+
+          const patterns = [
+            /tea junction/gi,
+            /brain cells/gi,
+            /\b47\s+members?\b/gi,
+            /\b246\s+members?\b/gi,
+            /members?/gi,
+            /profile_pic_url(?:_hd)?/gi,
+            /(?:group|thread)[_-]?(?:name|title)/gi,
+            /(?:scontent|fbcdn|cdninstagram)\S{0,500}/gi,
+          ];
+
+          function snippets(text, re, limit = 5) {
+            const out = [];
+            let m;
+            while ((m = re.exec(text)) && out.length < limit) {
+              out.push(text.slice(Math.max(0, m.index - 500), Math.min(text.length, m.index + 1200)).replace(/\s+/g, ' '));
+            }
+            re.lastIndex = 0;
+            return out;
+          }
+
+          async function check(name, url) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 25000);
+            try {
+              const response = await fetch(url, {
+                redirect: 'follow',
+                cache: 'no-store',
+                signal: controller.signal,
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36',
+                  'Accept-Language': 'en-US,en;q=0.9',
+                  'Accept': name === 'microlink' ? 'application/json' : 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+                  'Referer': 'https://www.instagram.com/'
+                }
+              });
+              const text = await response.text();
+              console.log(`\n=== ${name} ===`);
+              console.log(JSON.stringify({status: response.status, ok: response.ok, finalUrl: response.url, contentType: response.headers.get('content-type'), length: text.length}));
+              let payload = null;
+              try { payload = JSON.parse(text); } catch {}
+              const target = payload?.data?.html || payload?.content || payload?.data?.title ? JSON.stringify(payload) : text;
+              for (const re of patterns) {
+                const hits = snippets(target, re, 4);
+                if (hits.length) {
+                  console.log(`PATTERN ${re}:`);
+                  for (const hit of hits) console.log(hit.slice(0, 1800));
+                }
+              }
+              if (payload) {
+                const d = payload.data ?? payload;
+                console.log('JSON_KEYS', Object.keys(d || {}).slice(0, 40));
+                console.log('TITLE', d?.title ?? payload?.title ?? null);
+                console.log('IMAGE', d?.image ?? payload?.image ?? null);
+                if (d?.html) console.log('HTML_HEAD', String(d.html).slice(0, 5000));
+              }
+            } catch (e) {
+              console.log(`\n=== ${name} ERROR ===`);
+              console.log(e?.stack || e?.message || String(e));
+            } finally { clearTimeout(timer); }
+          }
+
+          (async () => {
+            for (const [name, url] of urls) await check(name, url);
+          })();
+          NODE
