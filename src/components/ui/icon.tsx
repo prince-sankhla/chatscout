@@ -1,4 +1,4 @@
-type IconName = "search" | "home" | "grid" | "trend" | "bookmark" | "menu" | "bell" | "moon" | "arrow" | "users" | "spark" | "instagram" | "close" | "shield" | "rocket" | "bolt" | "heart" | "briefcase" | "graduation" | "gamepad" | "flame" | "music" | "map" | "code";
+type IconName = "search" | "home" | "grid" | "trend" | "bookmark" | "menu" | "bell" | "moon" | "arrow" | "users" | "spark" | "instagram" | "close" | "shield" | "rocket" | "bolt" | "heart" | "briefcase" | "graduation" | "gamepad" | "flame" | "music" | "map" | "code" | "share" | "flag" | "globe" | "check";
 
 const paths: Record<IconName, React.ReactNode> = {
   search: <><circle cx="11" cy="11" r="6" /><path d="m20 20-4.2-4.2" /></>,
@@ -25,6 +25,10 @@ const paths: Record<IconName, React.ReactNode> = {
   music: <><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></>,
   map: <><path d="m9 18-6 3V6l6-3 6 3 6-3v15l-6 3Z" /><path d="M9 3v15M15 6v15" /></>,
   code: <><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" /></>,
+  share: <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" /></>,
+  flag: <path d="M5 21V4m0 1c4-3 6 3 14 0v10c-8 3-10-3-14 0" />,
+  globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>,
+  check: <path d="m5 12 4 4L19 6" />,
 };
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
