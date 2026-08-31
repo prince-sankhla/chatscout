@@ -17,6 +17,8 @@ function decode(value: string) {
     .replace(/\\u0022/g, '"')
     .replace(/\\\//g, "/")
     .replace(/\\n/g, "\n")
+    .replace(/\\u003c/g, "<")
+    .replace(/\\u003e/g, ">")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -62,7 +64,6 @@ function extractMembers(value: string) {
     /\bmembers?\s*[:·-]\s*(\d[\d,\.\s]*)\b/i,
     /["'](?:member[_-]?count|memberCount|participants?)["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
   ];
-
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (!match) continue;
@@ -73,24 +74,25 @@ function extractMembers(value: string) {
 }
 
 function extractQuotedField(text: string, field: string) {
-  const pattern = new RegExp(`(?:["']|\\\\\\\"){field}(?:["']|\\\\\\\")\\s*[:=]\\s*(?:["']|\\\\\\\")((?:\\\\\\\\.|[^"'\\\\])*)(?:["']|\\\\\\\")`, "i");
+  const escapedField = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`"${escapedField}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`, "i");
   const match = text.match(pattern);
   if (!match) return null;
   try {
-    return JSON.parse(`"${match[1].replace(/"/g, '\\\\"')}"`);
+    return JSON.parse(`"${match[1]}"`) as string;
   } catch {
     return decode(match[1]);
   }
 }
 
 function extractStructuredProps(raw: string) {
-  const title = extractQuotedField(raw, "title");
+  const title = cleanName(extractQuotedField(raw, "title"));
   const membersText = extractQuotedField(raw, "number_of_members_text");
-  const image = extractQuotedField(raw, "group_image_uri");
+  const imageUrl = extractQuotedField(raw, "group_image_uri");
   return {
-    title: cleanName(title),
+    title,
     memberCount: extractMembers(membersText ?? "") ?? extractMembers(raw),
-    imageUrl: image ? decode(image) : null,
+    imageUrl: imageUrl ? decode(imageUrl) : null,
   };
 }
 
@@ -98,15 +100,14 @@ function extractName(html: string, memberCount: number | null, title: string | n
   const structured = extractStructuredProps(html);
   if (structured.title) return structured.title;
 
-  const headings = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
+  const heading = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((match) => cleanName(match[1]))
     .find((value): value is string => Boolean(value));
-  if (headings) return headings;
+  if (heading) return heading;
 
-  const text = plainText(html);
+  const text = plainText(html).replace(/\s+/g, " ");
   if (memberCount !== null) {
-    const compact = text.replace(/\s+/g, " ");
-    const nearby = compact.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
+    const nearby = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
     const candidate = cleanName(nearby);
     if (candidate) return candidate;
   }
@@ -192,7 +193,6 @@ async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const structured = extractStructuredProps(html);
   const memberCount = structured.memberCount ?? extractMembers(html);
   const name = structured.title ?? extractName(html, memberCount, data.title ?? null, null);
-
   const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
   const structuredImage = absolute(structured.imageUrl, data.url ?? inviteUrl);
   const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
@@ -243,7 +243,6 @@ export async function resolveRenderedCommunityPreview(inviteUrl: string): Promis
     } catch {
       // Continue to direct HTML.
     }
-
     try {
       const directPreview = await fetchInstagram(direct);
       if (directPreview.name || directPreview.memberCount !== null || directPreview.imageUrl) return directPreview;
