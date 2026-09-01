@@ -9,13 +9,25 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FAILURE_THRESHOLD = 3;
+const BATCH_LIMIT = 500;
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
 type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
+
+type HealthChange = {
+  nameChanged: boolean;
+  memberCountChanged: boolean;
+  imageChanged: boolean;
+  becameHealthy: boolean;
+};
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
   return request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+function appUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? null;
 }
 
 async function ownerEmail(userId: string | null) {
@@ -36,6 +48,22 @@ async function audit(communityId: string, action: HealthAuditAction, note: strin
   });
 }
 
+async function notifyHealthChange(community: { id: string; slug: string; name: string; owner_user_id: string | null }, change: HealthChange, preview: { name: string | null; memberCount: number | null }) {
+  const pieces: string[] = [];
+  if (change.nameChanged) pieces.push(`name changed to “${preview.name}”`);
+  if (change.memberCountChanged) pieces.push(`member count changed to ${preview.memberCount?.toLocaleString("en-IN") ?? "unavailable"}`);
+  if (change.imageChanged) pieces.push("community image changed");
+  if (change.becameHealthy) pieces.push("invite link is responding again");
+  if (!pieces.length) return;
+
+  const note = `ChatScout detected that ${pieces.join(", ")}.`;
+  const link = appUrl() && community.slug ? `${appUrl()}/community/${community.slug}` : null;
+  const ownerTo = await ownerEmail(community.owner_user_id);
+  if (ownerTo) await sendAdminNotification({ type: "health_alert", to: ownerTo, communityName: community.name, note, link });
+  const adminTo = process.env.ADMIN_EMAIL?.trim();
+  if (adminTo) await sendAdminNotification({ type: "health_alert", to: adminTo, communityName: community.name, note, link: appUrl() ? `${appUrl()}/admin` : null });
+}
+
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = createAdminSupabaseClient();
@@ -44,10 +72,11 @@ export async function GET(request: Request) {
     .select("id, slug, name, invite_url, image_path, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count, last_remote_image_hash")
     .eq("status", "published")
     .eq("auto_monitor_enabled", true)
-    .limit(500);
+    .order("health_last_checked_at", { ascending: true, nullsFirst: true })
+    .limit(BATCH_LIMIT);
   if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
 
-  const results = { checked: 0, healthy: 0, changed: 0, archived: 0, failed: 0 };
+  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0 };
   for (const community of communities ?? []) {
     results.checked += 1;
     const preview = await resolveCommunityPreview(community.invite_url);
@@ -69,14 +98,18 @@ export async function GET(request: Request) {
       await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
       if (shouldArchive) {
         results.archived += 1;
-        await sendAdminNotification({ type: "health_alert", to: await ownerEmail(community.owner_user_id), communityName: community.name, note: "The Instagram invite could not be verified after three consecutive checks, so the listing was archived automatically." });
+        const note = "The Instagram invite could not be verified after three consecutive checks, so the listing was archived automatically.";
+        await sendAdminNotification({ type: "health_alert", to: await ownerEmail(community.owner_user_id), communityName: community.name, note, link: appUrl() ? `${appUrl()}/admin` : null });
         const adminEmail = process.env.ADMIN_EMAIL?.trim();
-        if (adminEmail) await sendAdminNotification({ type: "health_alert", to: adminEmail, communityName: community.name, note: `The listing was auto-archived after ${FAILURE_THRESHOLD} consecutive failed public invite checks.`, link: process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/admin` : null });
+        if (adminEmail) await sendAdminNotification({ type: "health_alert", to: adminEmail, communityName: community.name, note, link: appUrl() ? `${appUrl()}/admin` : null });
       }
       continue;
     }
 
-    let changed = false;
+    const wasUnhealthy = community.health_status !== "healthy";
+    let nameChanged = false;
+    let memberCountChanged = false;
+    let imageChanged = false;
     const update: CommunityUpdate = {
       health_status: "healthy",
       health_last_checked_at: new Date().toISOString(),
@@ -86,8 +119,15 @@ export async function GET(request: Request) {
       last_remote_name: preview.name ?? community.last_remote_name,
       last_remote_member_count: preview.memberCount ?? community.last_remote_member_count,
     };
-    if (preview.name && preview.name !== community.name) { update.name = preview.name; changed = true; }
-    if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count) { update.member_count = preview.memberCount; changed = true; }
+
+    if (preview.name && preview.name !== community.name) {
+      update.name = preview.name;
+      nameChanged = true;
+    }
+    if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count) {
+      update.member_count = preview.memberCount;
+      memberCountChanged = true;
+    }
 
     if (preview.imageUrl) {
       try {
@@ -100,19 +140,29 @@ export async function GET(request: Request) {
             update.last_remote_image_checked_at = new Date().toISOString();
             if (hash !== community.last_remote_image_hash) {
               const storedPath = await storeRemoteCommunityImage(preview.imageUrl, community.owner_user_id ?? process.env.ADMIN_USER_ID ?? "");
-              if (storedPath) { update.image_path = storedPath; changed = true; }
+              if (storedPath) {
+                update.image_path = storedPath;
+                imageChanged = true;
+              }
             }
           }
         }
-      } catch { /* preserve a successful text/member health result */ }
+      } catch {
+        // Preserve successful name/member health when image retrieval is temporarily unavailable.
+      }
     }
 
+    const changed = nameChanged || memberCountChanged || imageChanged;
     await admin.from("communities").update(update).eq("id", community.id);
-    if (changed) {
-      results.changed += 1;
-      await audit(community.id, "health_updated", "Automatic health check updated public community metadata.");
-    } else results.healthy += 1;
+    if (changed || wasUnhealthy) {
+      results.changed += changed ? 1 : 0;
+      results.recovered += wasUnhealthy ? 1 : 0;
+      if (changed) await audit(community.id, "health_updated", "Automatic health check updated public community metadata.");
+      await notifyHealthChange(community, { nameChanged, memberCountChanged, imageChanged, becameHealthy: wasUnhealthy }, preview);
+    } else {
+      results.healthy += 1;
+    }
   }
 
-  return NextResponse.json({ ok: true, ...results });
+  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), ...results });
 }
