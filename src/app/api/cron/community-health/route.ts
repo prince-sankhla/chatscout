@@ -15,7 +15,6 @@ type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_arch
 type HealthChange = {
   nameChanged: boolean;
   memberCountChanged: boolean;
-  imageChanged: boolean;
   becameHealthy: boolean;
 };
 
@@ -77,7 +76,7 @@ export async function GET(request: Request) {
   const admin = createAdminSupabaseClient();
   const { data: communities, error } = await admin
     .from("communities")
-    .select("id, slug, name, invite_url, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count, last_remote_image_hash")
+    .select("id, slug, name, invite_url, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count")
     .eq("status", "published")
     .eq("auto_monitor_enabled", true)
     .order("health_last_checked_at", { ascending: true, nullsFirst: true })
@@ -127,10 +126,6 @@ export async function GET(request: Request) {
     let nameChanged = false;
     let memberCountChanged = false;
 
-    // Never overwrite trusted listing metadata on a single scrape.
-    // The resolver's output is treated as an observation only. A name/member
-    // change must be identical on two consecutive observations before it can
-    // replace the stored value.
     if (hasStableNameObservation(community, preview.name)) {
       update.name = preview.name!;
       nameChanged = true;
@@ -139,11 +134,6 @@ export async function GET(request: Request) {
       update.member_count = preview.memberCount!;
       memberCountChanged = true;
     }
-
-    // Intentionally do NOT auto-replace image_path from scraped Instagram data.
-    // A remote image can be a generic Instagram/Meta asset or otherwise unrelated
-    // to the submitted community. We only retain the observation hash when one is
-    // already available from the resolver/previous implementation.
 
     const changed = nameChanged || memberCountChanged;
     if (!changed && preview.name && preview.name !== community.name && preview.name !== community.last_remote_name) results.pending += 1;
@@ -154,7 +144,7 @@ export async function GET(request: Request) {
       results.changed += changed ? 1 : 0;
       results.recovered += wasUnhealthy ? 1 : 0;
       if (changed) await audit(community.id, "health_updated", "Automatic health check applied a metadata change only after two consecutive matching observations.");
-      await notifyHealthChange(community, { nameChanged, memberCountChanged, imageChanged: false, becameHealthy: wasUnhealthy }, { name: preview.name, memberCount: preview.memberCount });
+      await notifyHealthChange(community, { nameChanged, memberCountChanged, becameHealthy: wasUnhealthy }, { name: preview.name, memberCount: preview.memberCount });
     } else {
       results.healthy += 1;
     }
