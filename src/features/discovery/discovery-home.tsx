@@ -41,17 +41,17 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
             <div className="neon-art" aria-hidden="true"><i className="orbit one" /><i className="orbit two" /><Image src="/brand/chatscout-logo.png" alt="" width={1254} height={1254} priority /><span className="art-bubble bubble-a"><Icon name="spark" /></span><span className="art-bubble bubble-b"><Icon name="users" /></span></div>
           </section>
 
-          <section className="launch-trust-strip" aria-label="Trust and freshness signals">
-            <div className="launch-trust-item"><span className="launch-signal verified"><Icon name="check" size={12} /> Verified</span><p>Verified status is shown separately from activity so you know exactly what has been checked.</p></div>
-            <div className="launch-trust-item"><span className="launch-signal active"><Icon name="bolt" size={12} /> Active</span><p>Health signals tell you when a community was checked and whether its invite appears active.</p></div>
-            <div className="launch-trust-item"><span className="launch-signal fresh"><Icon name="spark" size={12} /> Fresh</span><p>See when a listing was added so recent communities are easier to discover.</p></div>
-          </section>
-
-          <Reveal><section className="launch-section"><div className="launch-section-head"><div><p className="eyebrow">START WITH AN INTEREST</p><h2>Popular <span>categories</span></h2><p>Browse focused communities for study, tech, entertainment, lifestyle, local groups, and more.</p></div><Link href="/categories">View all <Icon name="arrow" size={14} /></Link></div><div className="launch-category-grid">{categoryIcons.map(([icon, label]) => <Link className="launch-category-card" href={`/search?q=${encodeURIComponent(label)}`} key={label}><Icon name={icon} size={14} /> {label}</Link>)}</div></section></Reveal>
-
           <Reveal><section className="neon-section"><div className="neon-section-head"><h2><Icon name="flame" />Trending GCs</h2><Link href="/trending">View all <Icon name="arrow" size={14} /></Link></div>{trending.length ? <CommunityGrid communities={trending} /> : <EmptyCards message="Trending communities will appear as people interact with them." />}</section></Reveal>
 
           <Reveal><section className="neon-section"><div className="neon-section-head"><h2><Icon name="spark" />Freshly Added</h2><Link href="/new">View all <Icon name="arrow" size={14} /></Link></div>{newCommunities.length ? <CommunityGrid communities={newCommunities} /> : <EmptyCards message={message} />}</section></Reveal>
+
+          <section className="launch-trust-strip" aria-label="Trust and freshness signals">
+            <div className="launch-trust-item"><span className="launch-signal verified"><Icon name="check" size={12} /> Verified</span><p>ChatScout verification is a platform status; it is separate from whether an invite is currently active.</p></div>
+            <div className="launch-trust-item"><span className="launch-signal active"><Icon name="bolt" size={12} /> Active</span><p>Active means the invite was recently checked and appeared reachable at the last health check.</p></div>
+            <div className="launch-trust-item"><span className="launch-signal fresh"><Icon name="spark" size={12} /> Fresh</span><p>Fresh shows how recently the community was listed on ChatScout.</p></div>
+          </section>
+
+          <Reveal><section className="launch-section"><div className="launch-section-head"><div><p className="eyebrow">START WITH AN INTEREST</p><h2>Popular <span>categories</span></h2><p>Browse focused communities for study, tech, entertainment, lifestyle, local groups, and more.</p></div><Link href="/categories">View all <Icon name="arrow" size={14} /></Link></div><div className="launch-category-grid">{categoryIcons.map(([icon, label]) => <Link className="launch-category-card" href={`/search?q=${encodeURIComponent(label)}`} key={label}><Icon name={icon} size={14} /> {label}</Link>)}</div></section></Reveal>
 
           <Reveal><section className="launch-section"><div className="launch-section-head"><div><p className="eyebrow">HOW CHATSCOUT WORKS</p><h2>Discover. Preview. <span>Join.</span></h2><p>Get the useful context before you leave ChatScout for Instagram.</p></div></div><div className="launch-how-grid"><article className="launch-how-card"><span className="launch-how-number">1</span><h3>Discover</h3><p>Find communities by interest, language, region, age, member size, and other available filters.</p></article><article className="launch-how-card"><span className="launch-how-number">2</span><h3>Preview</h3><p>See community details, eligibility, verification, activity signals, and listing freshness before joining.</p></article><article className="launch-how-card"><span className="launch-how-number">3</span><h3>Join</h3><p>Open the community page and continue to Instagram through the existing join flow.</p></article></div><div className="launch-owner-flow"><strong>For community owners:</strong> List → Review → Get discovered</div></section></Reveal>
 
