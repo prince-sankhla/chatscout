@@ -12,6 +12,9 @@ function verificationLabel(status: Community["verificationStatus"] = "unverified
 
 export function CommunityCard({ community, rank, compact = false }: { community: Community; rank?: number; compact?: boolean }) {
   const verification = community.verificationStatus ?? "unverified";
+  const healthLabel = community.healthLabel ?? "Active listing";
+  const isActive = healthLabel.toLowerCase().startsWith("active");
+
   return <article className={`community-card ${compact ? "community-card-compact" : ""}`}>
     <Link className={`community-art art-${community.accent}`} href={`/community/${community.slug}`} aria-label={`View ${community.name}`}>
       {community.imageUrl ? <img className="community-image" src={community.imageUrl} alt="" /> : <><span className="art-orbit" /><span className="art-copy">{community.initials.split("\n").map((line) => <span key={line}>{line}</span>)}</span></>}
@@ -24,7 +27,7 @@ export function CommunityCard({ community, rank, compact = false }: { community:
       </div>
       <div className="tag-row">{community.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
       <div className="community-trust-row"><span><Icon name="users" size={15} />{community.membersLabel}</span><span>{verificationLabel(verification)}</span></div>
-      <div className="community-trust-row secondary"><span>{community.healthLabel ?? "Active listing"}</span><span>{community.listingAgeLabel ?? "Recently listed"}</span></div>
+      <div className="community-trust-row secondary"><span className={isActive ? "community-active-status" : undefined}>{isActive && <span className="community-active-dot" aria-label="Active" title="Active" />}{healthLabel}</span><span>{community.listingAgeLabel ?? "Recently listed"}</span></div>
       {!compact && <p className="community-description">{community.description}</p>}
       <Link className="join-button" href={`/community/${community.slug}`}><Icon name="instagram" size={17} />View community</Link>
     </div>
