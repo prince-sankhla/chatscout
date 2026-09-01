@@ -1,11 +1,9 @@
 "use server";
 
-import crypto from "node:crypto";
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/lib/supabase/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { sendAdminNotification } from "@/lib/notifications/email";
-import { resolveCommunityPreview, storeRemoteCommunityImage } from "@/features/community-monitor/resolver";
+import { resolveCommunityPreview } from "@/features/community-monitor/resolver";
 import type { Database } from "@/types/database";
 
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
@@ -75,52 +73,32 @@ export async function checkCommunityHealthNow(formData: FormData) {
     health_last_checked_at: now,
     health_failure_count: 0,
     last_health_error: null,
-    verification_status: "verified",
+    verification_status: community.verification_status,
     last_remote_name: preview.name ?? community.last_remote_name,
     last_remote_member_count: preview.memberCount ?? community.last_remote_member_count,
   };
   const changes: string[] = [];
 
-  if (preview.name && preview.name !== community.name) {
+  // Treat scraper results as observations. Never replace trusted metadata from
+  // one scrape; the same differing value must be observed on the prior check.
+  if (preview.name && preview.name !== community.name && preview.name === community.last_remote_name) {
     update.name = preview.name;
     changes.push(`name: ${community.name} → ${preview.name}`);
   }
-  if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count) {
+  if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count && preview.memberCount === community.last_remote_member_count) {
     update.member_count = preview.memberCount;
     changes.push(`members: ${community.member_count ?? "unknown"} → ${preview.memberCount}`);
   }
-  if (preview.imageUrl) {
-    try {
-      const response = await fetch(preview.imageUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ChatScoutBot/1.0)" },
-        cache: "no-store",
-      });
-      if (response.ok) {
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        if (bytes.length > 0 && bytes.length <= 4 * 1024 * 1024) {
-          const hash = crypto.createHash("sha256").update(bytes).digest("hex");
-          update.last_remote_image_hash = hash;
-          update.last_remote_image_checked_at = now;
-          if (hash !== community.last_remote_image_hash) {
-            const storedPath = await storeRemoteCommunityImage(preview.imageUrl, community.owner_user_id ?? controller.id);
-            if (storedPath) {
-              update.image_path = storedPath;
-              changes.push("image changed");
-            }
-          }
-        }
-      }
-    } catch {
-      // A successful text/member health result remains valid when the image refresh fails.
-    }
-  }
+
+  // Intentionally never overwrite image_path from a remote scraper.
+  // Community images are trusted listing assets and need an explicit update flow.
 
   const { error: updateError } = await admin.from("communities").update(update).eq("id", communityId);
   if (updateError) redirect("/admin/health?status=failed");
 
-  await audit(communityId, changes.length ? `Manual health check updated ${changes.join(", ")}.` : `Manual health check confirmed ${community.name} is healthy.`);
+  await audit(communityId, changes.length ? `Manual health check applied only confirmed metadata changes: ${changes.join(", ")}.` : `Manual health check confirmed ${community.name} is healthy; unconfirmed remote metadata was not applied.`);
   if (changes.length) {
-    await notifyOwner(community.owner_user_id, community.name, `ChatScout detected changes: ${changes.join("; ")}.`);
+    await notifyOwner(community.owner_user_id, community.name, `ChatScout detected confirmed changes: ${changes.join("; ")}.`);
   }
   redirect(`/admin/health?status=${changes.length ? "changed" : "healthy"}`);
 }
