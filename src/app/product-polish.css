@@ -17,14 +17,14 @@ body { text-rendering: optimizeLegibility; }
 .community-trust-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:7px; color:var(--muted); font-size:10px; }
 .community-trust-row span { display:inline-flex; align-items:center; gap:5px; }
 .community-trust-row.secondary { margin-top:6px; color:var(--purple); font-weight:650; }
-.community-active-dot { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 2px rgba(34,197,94,.14),0 0 8px rgba(34,197,94,.55); }
+.community-active-dot { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:#22a85a; box-shadow:0 0 0 2px rgba(34,168,90,.14),0 0 8px rgba(34,168,90,.45); }
 .community-status-overlay { position:absolute; z-index:2; top:10px; left:10px; right:10px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; pointer-events:none; }
-.community-status-pill { display:inline-flex; align-items:center; gap:5px; min-height:25px; padding:5px 9px; border:1px solid rgba(255,255,255,.24); border-radius:999px; background:rgba(255,255,255,.10); box-shadow:0 5px 16px rgba(0,0,0,.16); backdrop-filter:blur(12px) saturate(140%); -webkit-backdrop-filter:blur(12px) saturate(140%); font-size:10px; line-height:1; font-weight:800; white-space:nowrap; }
-.community-active-pill { color:#86efac; border-color:rgba(34,197,94,.34); }
+.community-status-pill { display:inline-flex; align-items:center; gap:5px; min-height:25px; padding:5px 9px; border:1px solid rgba(255,255,255,.18); border-radius:999px; background:rgba(18,18,28,.34); box-shadow:0 5px 16px rgba(0,0,0,.16); backdrop-filter:blur(14px) saturate(135%); -webkit-backdrop-filter:blur(14px) saturate(135%); font-size:10px; line-height:1; font-weight:800; white-space:nowrap; }
+.community-active-pill { color:#32b866; border-color:rgba(50,184,102,.34); }
 .community-active-pill .community-active-dot { width:7px; height:7px; }
-.community-verified-pill { color:#4ade80; border-color:rgba(74,222,128,.38); background:rgba(255,255,255,.09); text-shadow:0 0 10px rgba(74,222,128,.12); }
-.community-verified-pill .icon { color:#4ade80; }
-/* Verification and activity are displayed as compact glass image-overlay trust signals. */
+.community-verified-pill { color:#2fa85d; border-color:rgba(47,168,93,.34); background:rgba(18,18,28,.34); text-shadow:0 0 10px rgba(47,168,93,.10); }
+.community-verified-pill .icon { color:#2fa85d; }
+/* Verification and activity are compact glass image-overlay trust signals. */
 .community-title-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .community-title-row h3 { min-width:0; margin:0; }
 .neon-popular a { transition:background .18s ease,color .18s ease,border-color .18s ease; }
