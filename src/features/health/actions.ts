@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/lib/supabase/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendAdminNotification } from "@/lib/notifications/email";
-import { resolveCommunityPreview } from "@/features/community-monitor/resolver";
+import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
 import type { Database } from "@/types/database";
 
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
@@ -44,7 +44,7 @@ async function audit(communityId: string, note: string) {
 }
 
 export async function checkCommunityHealthNow(formData: FormData) {
-  const controller = await requireAdminUser();
+  await requireAdminUser();
   const communityId = uuidValue(formData, "communityId");
   if (!communityId) redirect("/admin/health?status=invalid");
 
@@ -52,7 +52,8 @@ export async function checkCommunityHealthNow(formData: FormData) {
   const { data: community, error } = await admin.from("communities").select("*").eq("id", communityId).maybeSingle();
   if (error || !community) redirect("/admin/health?status=failed");
 
-  const preview = await resolveCommunityPreview(community.invite_url);
+  // Keep manual checks on the exact same rendered resolver used by the submit form.
+  const preview = await resolveRenderedCommunityPreview(community.invite_url);
   const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
   const now = new Date().toISOString();
 
@@ -90,8 +91,8 @@ export async function checkCommunityHealthNow(formData: FormData) {
   }
 
   // Intentionally never overwrite image_path from a remote scraper.
-  // Community images are trusted listing assets and require an explicit update flow.
-
+  // The rendered resolver is used for the same observation source as submissions,
+  // while the stored/trusted listing image remains under explicit update control.
   const { error: updateError } = await admin.from("communities").update(update).eq("id", communityId);
   if (updateError) redirect("/admin/health?status=failed");
 
