@@ -11,7 +11,7 @@ const IG_ME_PATTERN = /^https:\/\/ig\.me\/j\/[^/]+\/?$/i;
 const INSTAGRAM_INVITE_PATTERN = /^https:\/\/(?:www\.)?instagram\.com\/j\/[^/]+\/?$/i;
 
 function categorySlug(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "-").slice(0, 80).replace(/-+$/g, "");
 }
 
 function communitySlug(name: string) {
@@ -50,7 +50,9 @@ export type BulkImportResult = {
   items: Array<{ url: string; status: "imported" | "skipped" | "failed"; name?: string; members?: number | null; reason?: string }>;
 };
 
-export async function bulkImportCommunities(formData: FormData): Promise<BulkImportResult> {
+const EMPTY_STATE: BulkImportResult = { inputCount: 0, imported: 0, skipped: 0, failed: 0, items: [] };
+
+export async function bulkImportCommunities(previousState: BulkImportResult | null, formData: FormData): Promise<BulkImportResult> {
   const adminUser = await requireAdminUser();
   const categoryValue = formData.get("category");
   const category = typeof categoryValue === "string" ? categoryValue.trim() : "";
@@ -61,7 +63,7 @@ export async function bulkImportCommunities(formData: FormData): Promise<BulkImp
   const urlsValue = formData.get("urls");
   const urlsText = typeof urlsValue === "string" ? urlsValue : "";
 
-  if (!category) return { inputCount: 0, imported: 0, skipped: 0, failed: 1, items: [{ url: "", status: "failed", reason: "Choose a category." }] };
+  if (!category) return { ...EMPTY_STATE, failed: 1, items: [{ url: "", status: "failed", reason: "Choose a category." }] };
 
   const urls = [...new Set(urlsText.split(/\s+/).map((value) => value.trim()).filter(Boolean))].slice(0, MAX_URLS);
   const supabase = createAdminSupabaseClient();
@@ -75,7 +77,7 @@ export async function bulkImportCommunities(formData: FormData): Promise<BulkImp
     }
 
     try {
-      const { data: existing } = await supabase.from("communities").select("id,name,member_count,image_path").eq("invite_url", inviteUrl).maybeSingle();
+      const { data: existing } = await supabase.from("communities").select("id,name,member_count").eq("invite_url", inviteUrl).maybeSingle();
       if (existing) {
         result.skipped += 1;
         result.items.push({ url: inviteUrl, status: "skipped", name: existing.name, members: existing.member_count, reason: "Already listed." });
