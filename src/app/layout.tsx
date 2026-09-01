@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./product-polish.css";
+import "./ui-stabilization.css";
 
 export const metadata: Metadata = {
   title: "ChatScout | Find your next group chat",
