@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 
 const savedKey = "chatscout-saved-community-slugs";
@@ -39,6 +40,5 @@ export function CommunityDetailActions({ slug, name }: { slug: string; name: str
     await navigator.clipboard?.writeText(url).catch(() => undefined);
   }
 
-  const reportHref = `mailto:?subject=${encodeURIComponent(`Report ${name} on ChatScout`)}`;
-  return <div className="detail-actions"><button type="button" onClick={toggleSaved} className={saved ? "is-saved" : ""} aria-pressed={saved}><Icon name="bookmark" size={17} />{saved ? "Saved" : "Save"}</button><button type="button" onClick={share}><Icon name="share" size={17} />Share</button><a href={reportHref}><Icon name="flag" size={17} />Report</a></div>;
+  return <div className="detail-actions"><button type="button" onClick={toggleSaved} className={saved ? "is-saved" : ""} aria-pressed={saved}><Icon name="bookmark" size={17} />{saved ? "Saved" : "Save"}</button><button type="button" onClick={share}><Icon name="share" size={17} />Share</button><Link href={`/report/${encodeURIComponent(slug)}`}><Icon name="flag" size={17} />Report</Link></div>;
 }
