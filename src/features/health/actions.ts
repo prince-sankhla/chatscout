@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/lib/supabase/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { sendAdminNotification } from "@/lib/notifications/email";
 import { resolveCommunityPreview } from "@/features/community-monitor/resolver";
 import type { Database } from "@/types/database";
 
@@ -79,8 +80,6 @@ export async function checkCommunityHealthNow(formData: FormData) {
   };
   const changes: string[] = [];
 
-  // Treat scraper results as observations. Never replace trusted metadata from
-  // one scrape; the same differing value must be observed on the prior check.
   if (preview.name && preview.name !== community.name && preview.name === community.last_remote_name) {
     update.name = preview.name;
     changes.push(`name: ${community.name} → ${preview.name}`);
@@ -91,7 +90,7 @@ export async function checkCommunityHealthNow(formData: FormData) {
   }
 
   // Intentionally never overwrite image_path from a remote scraper.
-  // Community images are trusted listing assets and need an explicit update flow.
+  // Community images are trusted listing assets and require an explicit update flow.
 
   const { error: updateError } = await admin.from("communities").update(update).eq("id", communityId);
   if (updateError) redirect("/admin/health?status=failed");
