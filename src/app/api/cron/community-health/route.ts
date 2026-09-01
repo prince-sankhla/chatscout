@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendAdminNotification } from "@/lib/notifications/email";
-import { resolveCommunityPreview } from "@/features/community-monitor/resolver";
+import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
 import type { AdminAuditAction, Database } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -86,7 +86,9 @@ export async function GET(request: Request) {
   const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, pending: 0 };
   for (const community of communities ?? []) {
     results.checked += 1;
-    const preview = await resolveCommunityPreview(community.invite_url);
+    // Use the exact same rendered resolver as new GC submissions. This keeps the
+    // health monitor aligned with the resolver that produced the trusted listing preview.
+    const preview = await resolveRenderedCommunityPreview(community.invite_url);
     const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
     if (!hasSignal) {
       results.failed += 1;
@@ -139,6 +141,9 @@ export async function GET(request: Request) {
     if (!changed && preview.name && preview.name !== community.name && preview.name !== community.last_remote_name) results.pending += 1;
     if (!changed && typeof preview.memberCount === "number" && preview.memberCount !== community.member_count && preview.memberCount !== community.last_remote_member_count) results.pending += 1;
 
+    // Health monitor is intentionally non-destructive for images.
+    // The same rendered resolver is used for observation, but image_path is never
+    // replaced automatically because a fetched asset can still be unrelated.
     await admin.from("communities").update(update).eq("id", community.id);
     if (changed || wasUnhealthy) {
       results.changed += changed ? 1 : 0;
