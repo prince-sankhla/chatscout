@@ -1,4 +1,4 @@
-type IconName = "search" | "home" | "grid" | "trend" | "bookmark" | "menu" | "bell" | "moon" | "arrow" | "users" | "spark" | "instagram" | "close" | "shield" | "rocket" | "bolt" | "heart" | "briefcase" | "graduation" | "gamepad" | "flame" | "music" | "map" | "code" | "share" | "flag" | "globe" | "check";
+type IconName = "search" | "home" | "grid" | "trend" | "bookmark" | "menu" | "bell" | "moon" | "arrow" | "users" | "spark" | "instagram" | "whatsapp" | "telegram" | "discord" | "close" | "shield" | "rocket" | "bolt" | "heart" | "briefcase" | "graduation" | "gamepad" | "flame" | "music" | "map" | "code" | "share" | "flag" | "globe" | "check";
 
 const paths: Record<IconName, React.ReactNode> = {
   search: <><circle cx="11" cy="11" r="6" /><path d="m20 20-4.2-4.2" /></>,
@@ -13,6 +13,9 @@ const paths: Record<IconName, React.ReactNode> = {
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></>,
   spark: <path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8Z" />,
   instagram: <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r=".8" fill="currentColor" /></>,
+  whatsapp: <><path d="M20.5 11.3a8.2 8.2 0 0 1-12.1 7.2L4 20l1.5-4.1A8.2 8.2 0 1 1 20.5 11.3Z" /><path d="M8.7 8.2c.3-.2.6-.2.8.1l.8 1.5c.2.3.1.6-.1.8l-.6.6c.6 1.1 1.6 2 2.8 2.6l.5-.6c.2-.3.5-.3.8-.2l1.5.8c.3.2.4.5.3.8l-.3.9c-.1.4-.5.6-.9.6-3.8-.5-6.8-3.4-7.4-7.2-.1-.3.1-.7.4-.9Z" /></>,
+  telegram: <><path d="m21 4-3 16-6.1-5.1-3.7 3.3.7-5.4L21 4Z" /><path d="m8.9 12.8 7.6-4.8-5.9 5.3" /></>,
+  discord: <><path d="M7.2 7.4A11.8 11.8 0 0 1 12 6a11.8 11.8 0 0 1 4.8 1.4c1.6 2 2.5 4.5 2.8 7.4a12 12 0 0 1-4.6 2.3l-1.1-1.5a7.5 7.5 0 0 0 2.1-.8M7.2 7.4A13.1 13.1 0 0 0 4.4 15a12 12 0 0 0 4.6 2.3l1.1-1.5a7.5 7.5 0 0 1-2.1-.8" /><circle cx="9.3" cy="12.5" r=".8" fill="currentColor" /><circle cx="14.7" cy="12.5" r=".8" fill="currentColor" /><path d="M7.5 7.2 6.4 5.8M16.5 7.2l1.1-1.4" /></>,
   close: <path d="m6 6 12 12M18 6 6 18" />,
   shield: <path d="M12 3 20 7v5c0 5-3.4 8-8 9-4.6-1-8-4-8-9V7Z" />,
   rocket: <><path d="M14 4c3.5-2 5.5-1 6-1 .2.5 1 2.5-1 6l-6 6-5-5Z" /><path d="m13 15-3 3M9 13l-3 1 1-3M13 19l-1 3-2-2" /><circle cx="16" cy="8" r="1" /></>,
