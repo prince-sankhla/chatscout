@@ -19,8 +19,22 @@ function UnavailableCommunity() {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const result = await getPublishedCommunityBySlug((await params).slug);
-  return result.data ? { title: `${result.data.name} | ChatScout`, description: result.data.description } : { title: "Community not found | ChatScout" };
+  const slug = (await params).slug;
+  const result = await getPublishedCommunityBySlug(slug);
+  if (!result.data) return { title: "Community not found | ChatScout" };
+  const image = result.data.image_path ? undefined : "/brand/chatscout-logo.png";
+  return {
+    title: `${result.data.name} | ChatScout`,
+    description: result.data.description,
+    alternates: { canonical: `/community/${result.data.slug}` },
+    openGraph: {
+      title: `${result.data.name} | ChatScout`,
+      description: result.data.description,
+      url: `/community/${result.data.slug}`,
+      type: "website",
+      images: image ? [{ url: image, width: 1254, height: 1254, alt: result.data.name }] : undefined,
+    },
+  };
 }
 
 export default async function CommunityPage({ params }: PageProps) {
