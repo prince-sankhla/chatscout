@@ -3,42 +3,59 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import styles from "./discovery-filters.module.css";
 
-const CATEGORY_OPTIONS = [
-  ["", "All categories"], ["college-university", "College & University"], ["jee-neet", "JEE & NEET"], ["competitive-exams", "Competitive Exams"], ["study-groups", "Study Groups"], ["bca-mca", "BCA / MCA"], ["career-jobs", "Career & Jobs"], ["ai-ml", "AI & ML"], ["coding", "Coding"], ["web-development", "Web Development"], ["cybersecurity", "Cybersecurity"], ["startups-entrepreneurship", "Startups & Entrepreneurship"], ["cloud-devops", "Cloud & DevOps"], ["gaming", "Gaming"], ["anime-manga", "Anime & Manga"], ["music", "Music"], ["memes-humor", "Memes & Humor"], ["movies-ott", "Movies & OTT"], ["sports", "Sports"], ["fitness", "Fitness"], ["health-wellness", "Health & Wellness"], ["fashion-beauty", "Fashion & Beauty"], ["travel", "Travel"], ["photography", "Photography"], ["books-writing", "Books & Writing"], ["finance-investing", "Finance & Investing"], ["crypto-web3", "Crypto & Web3"], ["creators", "Creators"], ["freelance", "Freelance"], ["networking", "Networking"], ["local-communities", "Local Communities"], ["india-wide", "India-wide"],
+const LANGUAGE_OPTIONS = [
+  ["", "Any language"], ["English", "English"], ["Hindi", "Hindi"], ["Hinglish", "Hinglish"], ["Bengali", "Bengali"], ["Telugu", "Telugu"], ["Marathi", "Marathi"], ["Tamil", "Tamil"], ["Gujarati", "Gujarati"], ["Urdu", "Urdu"], ["Kannada", "Kannada"], ["Odia", "Odia"], ["Malayalam", "Malayalam"], ["Punjabi", "Punjabi"], ["Assamese", "Assamese"], ["Maithili", "Maithili"], ["Sanskrit", "Sanskrit"], ["Konkani", "Konkani"], ["Nepali", "Nepali"], ["Sindhi", "Sindhi"], ["Dogri", "Dogri"], ["Kashmiri", "Kashmiri"], ["Manipuri", "Manipuri"], ["Bodo", "Bodo"], ["Santali", "Santali"], ["Multilingual", "Multilingual / Mixed"], ["Other", "Other"],
 ] as const;
 
-type Props = { category?: string; sort?: "newest" | "members"; showSort?: boolean };
+const REGION_OPTIONS = [
+  ["", "Any region"], ["India-wide", "India-wide"], ["Jaipur", "Jaipur"], ["Rajasthan", "Rajasthan"], ["Delhi NCR", "Delhi NCR"], ["Mumbai", "Mumbai"], ["Bengaluru", "Bengaluru"], ["Hyderabad", "Hyderabad"], ["Chennai", "Chennai"], ["Pune", "Pune"], ["Kolkata", "Kolkata"], ["Ahmedabad", "Ahmedabad"], ["Chandigarh", "Chandigarh"], ["Lucknow", "Lucknow"], ["Indore", "Indore"], ["Kochi", "Kochi"], ["Other", "Other / Regional"],
+] as const;
 
-export function DiscoveryFilters({ category = "", sort = "newest", showSort = true }: Props) {
+const AGE_OPTIONS = [["", "Any age"], ["everyone", "Everyone / No restriction"], ["13+", "13+"], ["16+", "16+"], ["18+", "18+ / Adults"]] as const;
+const MEMBER_OPTIONS = [["", "Any size"], ["0-50", "Under 50"], ["50-200", "50–200"], ["200-1000", "200–1K"], ["1000-5000", "1K–5K"], ["5000-999999999", "5K+"]] as const;
+const CATEGORY_FALLBACK = [["", "All categories"], ["college-university", "College & University"], ["jee-neet", "JEE & NEET"], ["competitive-exams", "Competitive Exams"], ["study-groups", "Study Groups"], ["bca-mca", "BCA / MCA"], ["career-jobs", "Career & Jobs"], ["ai-ml", "AI & ML"], ["coding", "Coding"], ["web-development", "Web Development"], ["cybersecurity", "Cybersecurity"], ["startups-entrepreneurship", "Startups & Entrepreneurship"], ["cloud-devops", "Cloud & DevOps"], ["gaming", "Gaming"], ["anime-manga", "Anime & Manga"], ["music", "Music"], ["memes-humor", "Memes & Humor"], ["movies-ott", "Movies & OTT"], ["sports", "Sports"], ["fitness", "Fitness"], ["health-wellness", "Health & Wellness"], ["fashion-beauty", "Fashion & Beauty"], ["travel", "Travel"], ["photography", "Photography"], ["books-writing", "Books & Writing"], ["finance-investing", "Finance & Investing"], ["crypto-web3", "Crypto & Web3"], ["creators", "Creators"], ["freelance", "Freelance"], ["networking", "Networking"], ["local-communities", "Local Communities"], ["india-wide", "India-wide"]] as const;
+
+type Props = { category?: string; sort?: "newest" | "members"; language?: string; region?: string; age?: string; members?: string; showSort?: boolean; categories?: readonly (readonly [string, string])[] };
+
+function parseMembers(value: string) {
+  if (!value) return {};
+  const [min, max] = value.split("-").map(Number);
+  return { min: Number.isFinite(min) ? min : undefined, max: Number.isFinite(max) ? max : undefined };
+}
+
+export function DiscoveryFilters({ category = "", sort = "newest", language = "", region = "", age = "", members = "", showSort = true, categories = CATEGORY_FALLBACK }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const query = params.get("q") ?? "";
 
-  function update(nextCategory: string, nextSort: string) {
+  function update(changes: Partial<Record<"category" | "sort" | "language" | "region" | "age" | "members", string>>) {
     const next = new URLSearchParams();
     if (query) next.set("q", query);
-    if (nextCategory) next.set("category", nextCategory);
-    if (showSort && nextSort !== "newest") next.set("sort", nextSort);
+    const values = { category, sort, language, region, age, members, ...changes };
+    if (values.category) next.set("category", values.category);
+    if (showSort && values.sort !== "newest") next.set("sort", values.sort);
+    if (values.language) next.set("language", values.language);
+    if (values.region) next.set("region", values.region);
+    if (values.age) next.set("age", values.age);
+    if (values.members) next.set("members", values.members);
     const search = next.toString();
     router.push(search ? `${pathname}?${search}` : pathname);
   }
 
+  const hasFilters = Boolean(category || language || region || age || members || (showSort && sort !== "newest"));
   return (
-    <div className={styles.bar} aria-label="Community filters">
-      <label className={styles.field}>
-        <span>Category</span>
-        <select value={category} onChange={(event) => update(event.target.value, sort)}>
-          {CATEGORY_OPTIONS.map(([value, label]) => <option value={value} key={value || "all"}>{label}</option>)}
-        </select>
-      </label>
-      {showSort && <label className={styles.field}>
-        <span>Sort by</span>
-        <select value={sort} onChange={(event) => update(category, event.target.value)}>
-          <option value="newest">Newest</option><option value="members">Most members</option>
-        </select>
-      </label>}
-      {(category || (showSort && sort !== "newest")) && <button type="button" className={styles.reset} onClick={() => update("", "newest")}>Reset</button>}
+    <div className={styles.wrap} aria-label="Community filters">
+      <div className={styles.bar}>
+        <label className={styles.field}><span>Category</span><select value={category} onChange={(event) => update({ category: event.target.value })}>{categories.map(([value, label]) => <option value={value} key={value || "all"}>{label}</option>)}</select></label>
+        <label className={styles.field}><span>Language</span><select value={language} onChange={(event) => update({ language: event.target.value })}>{LANGUAGE_OPTIONS.map(([value, label]) => <option value={value} key={value || "any-language"}>{label}</option>)}</select></label>
+        <label className={styles.field}><span>Region</span><select value={region} onChange={(event) => update({ region: event.target.value })}>{REGION_OPTIONS.map(([value, label]) => <option value={value} key={value || "any-region"}>{label}</option>)}</select></label>
+        <label className={styles.field}><span>Age</span><select value={age} onChange={(event) => update({ age: event.target.value })}>{AGE_OPTIONS.map(([value, label]) => <option value={value} key={value || "any-age"}>{label}</option>)}</select></label>
+        <label className={styles.field}><span>Members</span><select value={members} onChange={(event) => update({ members: event.target.value })}>{MEMBER_OPTIONS.map(([value, label]) => <option value={value} key={value || "any-size"}>{label}</option>)}</select></label>
+        {showSort && <label className={styles.field}><span>Sort by</span><select value={sort} onChange={(event) => update({ sort: event.target.value })}><option value="newest">Newest</option><option value="members">Most members</option></select></label>}
+        {hasFilters && <button type="button" className={styles.reset} onClick={() => update({ category: "", sort: "newest", language: "", region: "", age: "", members: "" })}>Reset</button>}
+      </div>
+      {hasFilters && <div className={styles.active}><span>Filters applied</span><small>Results update instantly when you choose an option.</small></div>}
     </div>
   );
 }

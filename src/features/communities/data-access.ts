@@ -9,7 +9,17 @@ export type CommunityQueryResult<T> =
   | { data: null; error: { code: "COMMUNITY_QUERY_FAILED"; message: string } };
 
 export type CommunitySort = "newest" | "members";
-export type PublishedCommunityFilters = { categorySlug?: string; platform?: "instagram"; sort?: CommunitySort };
+export type AgeFilter = "any" | "everyone" | "13+" | "16+" | "18+";
+export type PublishedCommunityFilters = {
+  categorySlug?: string;
+  platform?: "instagram";
+  sort?: CommunitySort;
+  language?: string;
+  region?: string;
+  age?: AgeFilter;
+  minMembers?: number;
+  maxMembers?: number;
+};
 
 const MAX_SEARCH_RESULTS = 50;
 const TRENDING_WINDOW_DAYS = 7;
@@ -17,6 +27,25 @@ const TRENDING_WINDOW_DAYS = 7;
 function normalizeSearchTerm(term: string) { return term.trim().replace(/[%_(),.]/g, " ").replace(/\s+/g, " ").slice(0, 100); }
 function queryFailure<T>(error: PostgrestError, message: string): CommunityQueryResult<T> { void error; return { data: null, error: { code: "COMMUNITY_QUERY_FAILED", message } }; }
 function orderColumn(sort: CommunitySort = "newest") { return sort === "members" ? "member_count" : "published_at"; }
+
+function applyDiscoveryFilters(communities: CommunityRow[], filters: PublishedCommunityFilters) {
+  const language = filters.language?.trim().toLowerCase();
+  const region = filters.region?.trim().toLowerCase();
+  const age = filters.age ?? "any";
+  return communities.filter((community) => {
+    if (language && language !== "any" && !(community.language ?? "").toLowerCase().includes(language)) return false;
+    if (region && region !== "any" && !(community.region ?? "").toLowerCase().includes(region)) return false;
+    const members = community.member_count ?? -1;
+    if (filters.minMembers !== undefined && (members < filters.minMembers || members < 0)) return false;
+    if (filters.maxMembers !== undefined && (members < 0 || members > filters.maxMembers)) return false;
+    if (age !== "any") {
+      const value = (community.age_restriction ?? "").toLowerCase();
+      if (age === "everyone" && value && !value.includes("everyone") && !value.includes("no restriction") && !value.includes("no age") && !value.includes("all ages")) return false;
+      if (age !== "everyone" && !value.includes(age)) return false;
+    }
+    return true;
+  });
+}
 
 export async function getActiveCategories(): Promise<CommunityQueryResult<CategoryRow[]>> {
   const supabase = createServerSupabaseClient();
@@ -47,11 +76,11 @@ export async function getPublishedCommunities(filters: PublishedCommunityFilters
   if (category.ids) query = query.in("id", category.ids);
   const { data, error } = await query.limit(MAX_SEARCH_RESULTS);
   if (error) return queryFailure(error, "Unable to load communities.");
-  return { data: data ?? [], error: null };
+  return { data: applyDiscoveryFilters(data ?? [], filters), error: null };
 }
 
 export async function getTrendingPublishedCommunities(filters: Omit<PublishedCommunityFilters, "sort"> = {}, limit = 12): Promise<CommunityQueryResult<CommunityRow[]>> {
-  const published = await getPublishedCommunities({ categorySlug: filters.categorySlug, platform: filters.platform, sort: "newest" });
+  const published = await getPublishedCommunities({ categorySlug: filters.categorySlug, platform: filters.platform, sort: "newest", language: filters.language, region: filters.region, age: filters.age, minMembers: filters.minMembers, maxMembers: filters.maxMembers });
   if (published.error || !published.data.length) return published.error ? { data: null, error: published.error } : { data: [], error: null };
   const ids = published.data.map((community) => community.id);
   const since = new Date(Date.now() - TRENDING_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -129,6 +158,7 @@ export async function searchPublishedCommunities(term: string, filters: Omit<Pub
     const allowed = new Set(category.ids);
     matches = matches.filter((community) => allowed.has(community.id));
   }
+  matches = applyDiscoveryFilters(matches, filters);
   matches.sort((a, b) => {
     if (filters.sort === "members") return (b.member_count ?? -1) - (a.member_count ?? -1);
     return new Date(b.published_at ?? b.created_at).getTime() - new Date(a.published_at ?? a.created_at).getTime();
