@@ -1,6 +1,7 @@
 import "server-only";
 
 const TIMEOUT_MS = 25_000;
+const INSTAGRAM_GENERIC_HOST = "static.cdninstagram.com";
 
 type Preview = {
   name: string | null;
@@ -126,11 +127,7 @@ function isUsableImage(value: string | null) {
   try {
     const url = new URL(value);
     if (!/^https?:$/i.test(url.protocol)) return false;
-
-    // Instagram exposes a generic site/app artwork asset through
-    // static.cdninstagram.com. It is not the actual group image and can be
-    // returned by Microlink as the page-level preview, so never publish it.
-    if (/^static\.cdninstagram\.com$/i.test(url.hostname)) return false;
+    if (url.hostname.toLowerCase() === INSTAGRAM_GENERIC_HOST) return false;
     if (/\/(?:rsrc\.php|shared\/static)\//i.test(url.pathname)) return false;
     if (/(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo|avatar-placeholder|sprite)/i.test(url.pathname)) return false;
 
@@ -207,10 +204,6 @@ async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const structuredImage = absolute(structured.imageUrl, data.url ?? inviteUrl);
   const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
   const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
-
-  // Prefer explicit group image data over generic page-level previews. The
-  // latter is often Instagram/Meta artwork even when the invite page has a
-  // real community image available elsewhere in the rendered HTML.
   const imageUrl = [structuredImage, htmlImage, providerImage]
     .find((value): value is string => isUsableImage(value)) ?? null;
 
