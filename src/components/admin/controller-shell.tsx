@@ -29,13 +29,15 @@ export function ControllerShell({ children, active, title, eyebrow = "CHATSCOUT 
     <div className="controller-shell">
       <aside className="controller-sidebar" aria-label="Controller navigation">
         <Link href="/admin" className="controller-brand" aria-label="ChatScout Controller home">
-          <span className="controller-brand-mark">CS</span>
+          <span className="controller-brand-mark" aria-hidden="true">CS</span>
           <span><b>ChatScout</b><small>CONTROL CENTER</small></span>
         </Link>
         <nav className="controller-nav">
           <div className="controller-nav-group">
             <small>WORKSPACE</small>
-            {nav.map(([label, href, key]) => <Link key={key} className={active === key ? "active" : ""} href={href}>{label}</Link>)}
+            {nav.map(([label, href, key]) => (
+              <Link key={key} className={active === key ? "active" : ""} href={href} aria-current={active === key ? "page" : undefined}>{label}</Link>
+            ))}
           </div>
           <div className="controller-nav-group controller-nav-secondary">
             <small>ACCOUNT</small>
@@ -53,7 +55,7 @@ export function ControllerShell({ children, active, title, eyebrow = "CHATSCOUT 
             <h1>{title}</h1>
             {description && <p>{description}</p>}
           </div>
-          <Link href="/" target="_blank" className="admin-secondary controller-view-site">View public site ↗</Link>
+          <Link href="/" target="_blank" rel="noreferrer" className="admin-secondary controller-view-site">View public site ↗</Link>
         </header>
         <main className="controller-content">{children}</main>
       </div>
