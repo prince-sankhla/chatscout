@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import crypto from "node:crypto";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { sendAdminNotification } from "@/lib/notifications/email";
-import { resolveCommunityPreview, storeRemoteCommunityImage } from "@/features/community-monitor/resolver";
+import { resolveCommunityPreview } from "@/features/community-monitor/resolver";
 import type { AdminAuditAction, Database } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -52,7 +51,6 @@ async function notifyHealthChange(community: { id: string; slug: string; name: s
   const pieces: string[] = [];
   if (change.nameChanged) pieces.push(`name changed to “${preview.name}”`);
   if (change.memberCountChanged) pieces.push(`member count changed to ${preview.memberCount?.toLocaleString("en-IN") ?? "unavailable"}`);
-  if (change.imageChanged) pieces.push("community image changed");
   if (change.becameHealthy) pieces.push("invite link is responding again");
   if (!pieces.length) return;
 
@@ -64,19 +62,29 @@ async function notifyHealthChange(community: { id: string; slug: string; name: s
   if (adminTo) await sendAdminNotification({ type: "health_alert", to: adminTo, communityName: community.name, note, link: appUrl() ? `${appUrl()}/admin` : null });
 }
 
+function hasStableNameObservation(community: { name: string; last_remote_name: string | null }, detectedName: string | null) {
+  return Boolean(detectedName && detectedName !== community.name && detectedName === community.last_remote_name);
+}
+
+function hasStableMemberObservation(community: { member_count: number | null; last_remote_member_count: number | null }, detectedMemberCount: number | null) {
+  return typeof detectedMemberCount === "number"
+    && detectedMemberCount !== community.member_count
+    && detectedMemberCount === community.last_remote_member_count;
+}
+
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = createAdminSupabaseClient();
   const { data: communities, error } = await admin
     .from("communities")
-    .select("id, slug, name, invite_url, image_path, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count, last_remote_image_hash")
+    .select("id, slug, name, invite_url, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count, last_remote_image_hash")
     .eq("status", "published")
     .eq("auto_monitor_enabled", true)
     .order("health_last_checked_at", { ascending: true, nullsFirst: true })
     .limit(BATCH_LIMIT);
   if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
 
-  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0 };
+  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, pending: 0 };
   for (const community of communities ?? []) {
     results.checked += 1;
     const preview = await resolveCommunityPreview(community.invite_url);
@@ -107,58 +115,46 @@ export async function GET(request: Request) {
     }
 
     const wasUnhealthy = community.health_status !== "healthy";
-    let nameChanged = false;
-    let memberCountChanged = false;
-    let imageChanged = false;
     const update: CommunityUpdate = {
       health_status: "healthy",
       health_last_checked_at: new Date().toISOString(),
       health_failure_count: 0,
       last_health_error: null,
-      verification_status: "verified",
+      verification_status: community.verification_status,
       last_remote_name: preview.name ?? community.last_remote_name,
       last_remote_member_count: preview.memberCount ?? community.last_remote_member_count,
     };
+    let nameChanged = false;
+    let memberCountChanged = false;
 
-    if (preview.name && preview.name !== community.name) {
-      update.name = preview.name;
+    // Never overwrite trusted listing metadata on a single scrape.
+    // The resolver's output is treated as an observation only. A name/member
+    // change must be identical on two consecutive observations before it can
+    // replace the stored value.
+    if (hasStableNameObservation(community, preview.name)) {
+      update.name = preview.name!;
       nameChanged = true;
     }
-    if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count) {
-      update.member_count = preview.memberCount;
+    if (hasStableMemberObservation(community, preview.memberCount)) {
+      update.member_count = preview.memberCount!;
       memberCountChanged = true;
     }
 
-    if (preview.imageUrl) {
-      try {
-        const response = await fetch(preview.imageUrl, { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChatScoutBot/1.0)" }, cache: "no-store" });
-        if (response.ok) {
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          if (bytes.length > 0 && bytes.length <= 4 * 1024 * 1024) {
-            const hash = crypto.createHash("sha256").update(bytes).digest("hex");
-            update.last_remote_image_hash = hash;
-            update.last_remote_image_checked_at = new Date().toISOString();
-            if (hash !== community.last_remote_image_hash) {
-              const storedPath = await storeRemoteCommunityImage(preview.imageUrl, community.owner_user_id ?? process.env.ADMIN_USER_ID ?? "");
-              if (storedPath) {
-                update.image_path = storedPath;
-                imageChanged = true;
-              }
-            }
-          }
-        }
-      } catch {
-        // Preserve successful name/member health when image retrieval is temporarily unavailable.
-      }
-    }
+    // Intentionally do NOT auto-replace image_path from scraped Instagram data.
+    // A remote image can be a generic Instagram/Meta asset or otherwise unrelated
+    // to the submitted community. We only retain the observation hash when one is
+    // already available from the resolver/previous implementation.
 
-    const changed = nameChanged || memberCountChanged || imageChanged;
+    const changed = nameChanged || memberCountChanged;
+    if (!changed && preview.name && preview.name !== community.name && preview.name !== community.last_remote_name) results.pending += 1;
+    if (!changed && typeof preview.memberCount === "number" && preview.memberCount !== community.member_count && preview.memberCount !== community.last_remote_member_count) results.pending += 1;
+
     await admin.from("communities").update(update).eq("id", community.id);
     if (changed || wasUnhealthy) {
       results.changed += changed ? 1 : 0;
       results.recovered += wasUnhealthy ? 1 : 0;
-      if (changed) await audit(community.id, "health_updated", "Automatic health check updated public community metadata.");
-      await notifyHealthChange(community, { nameChanged, memberCountChanged, imageChanged, becameHealthy: wasUnhealthy }, preview);
+      if (changed) await audit(community.id, "health_updated", "Automatic health check applied a metadata change only after two consecutive matching observations.");
+      await notifyHealthChange(community, { nameChanged, memberCountChanged, imageChanged: false, becameHealthy: wasUnhealthy }, { name: preview.name, memberCount: preview.memberCount });
     } else {
       results.healthy += 1;
     }
