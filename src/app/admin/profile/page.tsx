@@ -25,7 +25,7 @@ export default async function AdminProfilePage() {
         <div className="admin-profile-main"><span className={`admin-status-badge ${role === "controller" ? "published" : ""}`}>{role === "controller" ? "Controller" : "Moderator / Admin"}</span><h2>{displayName(user)}</h2><p>{user.email ?? "Email unavailable"}</p><small>Admin since {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(user.created_at))}</small></div>
       </article>
       <div className="admin-profile-stats"><div><b>{count ?? 0}</b><span>Audit actions</span></div><div><b>{role === "controller" ? "Full" : "Moderation"}</b><span>Access level</span></div><div><b>Server</b><span>Protected session</span></div></div>
-      <div className="admin-note"><strong>Role controls</strong><p>The Controller role is resolved from the server-only admin configuration. Never expose admin IDs or role configuration in public pages.</p></div>
+      <div className="admin-note"><strong>Controller workspace</strong><p>Trust & Safety tools are available from these protected workspaces.</p><div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:12}}><Link className="admin-secondary" href="/admin/reports">Community reports</Link><Link className="admin-secondary" href="/admin/verification">Verification center</Link><Link className="admin-secondary" href="/admin/owners">Owner directory</Link></div></div>
     </section>
   </main>;
 }
