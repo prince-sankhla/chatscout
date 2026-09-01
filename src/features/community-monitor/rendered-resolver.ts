@@ -197,10 +197,15 @@ async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const structured = extractStructuredProps(html);
   const memberCount = structured.memberCount ?? extractMembers(html);
   const name = structured.title ?? extractName(html, memberCount, data.title ?? null, null);
-  const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
   const structuredImage = absolute(structured.imageUrl, data.url ?? inviteUrl);
   const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
-  const imageUrl = [providerImage, structuredImage, htmlImage].find((value): value is string => isUsableImage(value)) ?? null;
+  const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
+
+  // Instagram's generic page preview image is often the Instagram/Meta placeholder.
+  // Prefer the invite page's explicit group_image_uri or HTML image over Microlink's
+  // generic `image` field so real GC artwork/profile images win.
+  const imageUrl = [structuredImage, htmlImage, providerImage]
+    .find((value): value is string => isUsableImage(value)) ?? null;
 
   return { name, memberCount, imageUrl, finalUrl: data.url ?? inviteUrl };
 }
@@ -225,9 +230,9 @@ async function fetchInstagram(url: string): Promise<Preview> {
   const structured = extractStructuredProps(html);
   const memberCount = structured.memberCount ?? extractMembers(html);
   const name = structured.title ?? extractName(html, memberCount, null, null);
-  const image = structured.imageUrl && isUsableImage(structured.imageUrl)
-    ? structured.imageUrl
-    : firstUsableImageFromHtml(html, response.url || url);
+  const structuredImage = absolute(structured.imageUrl, response.url || url);
+  const htmlImage = firstUsableImageFromHtml(html, response.url || url);
+  const image = [structuredImage, htmlImage].find((value): value is string => isUsableImage(value)) ?? null;
   return { name, memberCount, imageUrl: image, finalUrl: response.url || url };
 }
 
