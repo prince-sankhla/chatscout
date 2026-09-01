@@ -1,3 +1,4 @@
 ChatScout deployment heartbeat.
 
 This marker keeps the deployment history explicit; no runtime behavior depends on this file.
+Deployment smoke marker: 2026-09-02 image resolver verification.
