@@ -11,26 +11,11 @@ function text(formData: FormData, key: string, max: number) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
-
-function slugify(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
-}
-
-function idValue(formData: FormData) {
-  const value = text(formData, "id", 50);
-  return uuidPattern.test(value) ? value : null;
-}
+function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80); }
+function idValue(formData: FormData) { const value = text(formData, "id", 50); return uuidPattern.test(value) ? value : null; }
 
 async function audit(userId: string, note: string) {
-  await createAdminSupabaseClient().from("admin_audit_log").insert({
-    action: "edited",
-    admin_user_id: userId,
-    community_id: null,
-    submission_id: null,
-    previous_status: null,
-    new_status: null,
-    note: note.slice(0, 2000),
-  });
+  await createAdminSupabaseClient().from("admin_audit_log").insert({ action: "edited", admin_user_id: userId, community_id: null, submission_id: null, previous_status: null, new_status: null, note: note.slice(0, 2000) });
 }
 
 export async function createCategory(formData: FormData) {
@@ -45,8 +30,7 @@ export async function createCategory(formData: FormData) {
   const { error } = await supabase.from("categories").insert({ name, slug, description, sort_order: sortOrder, is_active: true });
   if (error) redirect("/admin/categories?status=failed");
   await audit(user.id, `Category created: ${name}`);
-  revalidatePath("/admin/categories");
-  revalidatePath("/categories");
+  revalidatePath("/admin/categories"); revalidatePath("/categories");
   redirect("/admin/categories?status=created");
 }
 
@@ -63,8 +47,7 @@ export async function updateCategory(formData: FormData) {
   const { error } = await createAdminSupabaseClient().from("categories").update({ name, slug, description, sort_order: sortOrder }).eq("id", id);
   if (error) redirect("/admin/categories?status=failed");
   await audit(user.id, `Category updated: ${name}`);
-  revalidatePath("/admin/categories");
-  revalidatePath("/categories");
+  revalidatePath("/admin/categories"); revalidatePath("/categories");
   redirect("/admin/categories?status=updated");
 }
 
@@ -77,7 +60,7 @@ export async function setCategoryActive(formData: FormData) {
   const { data: category, error } = await supabase.from("categories").update({ is_active: enabled }).eq("id", id).select("name").single();
   if (error || !category) redirect("/admin/categories?status=failed");
   await audit(user.id, `Category ${enabled ? "activated" : "deactivated"}: ${category.name}`);
-  revalidatePath("/admin/categories");
-  revalidatePath("/categories");
-  redirect("/admin/categories?status=${enabled ? "activated" : "deactivated"}");
+  revalidatePath("/admin/categories"); revalidatePath("/categories");
+  const status = enabled ? "activated" : "deactivated";
+  redirect(`/admin/categories?status=${status}`);
 }
