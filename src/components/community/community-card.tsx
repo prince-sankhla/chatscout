@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Community } from "@/types/community";
 import { Icon } from "@/components/ui/icon";
 
-export function CommunityCard({ community, compact = false }: { community: Community; rank?: number; compact?: boolean }) {
+export function CommunityCard({ community, compact = false }: { community: Community; compact?: boolean }) {
   const verification = community.verificationStatus ?? "unverified";
   const healthLabel = community.healthLabel ?? "Active listing";
   const isActive = healthLabel.toLowerCase().startsWith("active");
