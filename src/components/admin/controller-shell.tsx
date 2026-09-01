@@ -4,6 +4,7 @@ import { logoutAdmin } from "@/features/auth/actions";
 
 const nav = [
   ["Overview", "/admin", "overview"],
+  ["Import GCs", "/admin/import", "import"],
   ["Analytics", "/admin/analytics", "analytics"],
   ["Communities", "/admin#communities", "communities"],
   ["Moderation", "/admin#moderation", "moderation"],
