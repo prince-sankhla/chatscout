@@ -1,0 +1,23 @@
+.wrap { display:grid; gap:14px; margin-top:18px; }
+.factGrid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.fact { min-width:0; padding:16px; border:1px solid var(--line); border-radius:14px; background:color-mix(in srgb,var(--surface) 88%,transparent); box-shadow:0 10px 28px rgba(0,0,0,.08); }
+.fact span,.fact small { display:block; color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
+.fact strong { display:block; margin-top:7px; color:var(--ink); font-size:18px; line-height:1.2; overflow-wrap:anywhere; }
+.fact small { margin-top:5px; font-size:9px; letter-spacing:.03em; text-transform:none; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.card { min-width:0; padding:20px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,color-mix(in srgb,var(--surface) 96%,var(--purple) 4%),var(--surface)); box-shadow:0 14px 38px rgba(0,0,0,.1); }
+.cardHead { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.kicker { display:block; color:var(--purple); font-size:9px; font-weight:850; letter-spacing:.13em; }
+.card h2 { margin:5px 0 0; color:var(--ink); font-size:18px; line-height:1.2; }
+.lead { margin:12px 0 0; color:var(--ink); font-size:13px; font-weight:700; }
+.statusGood,.statusNeutral { flex:0 0 auto; padding:5px 9px; border:1px solid color-mix(in srgb,var(--purple) 30%,var(--line)); border-radius:999px; color:var(--purple); background:color-mix(in srgb,var(--purple) 10%,transparent); font-size:10px; font-weight:800; text-transform:capitalize; }
+.statusGood { color:#16794d; border-color:color-mix(in srgb,#16794d 28%,var(--line)); background:color-mix(in srgb,#16794d 9%,transparent); }
+.checks { display:grid; gap:8px; margin-top:14px; }
+.checks span { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+.checks i { display:inline-grid; place-items:center; width:19px; height:19px; border-radius:50%; background:color-mix(in srgb,var(--purple) 12%,transparent); color:var(--purple); font-style:normal; font-size:11px; font-weight:900; }
+.details { display:grid; gap:11px; margin:15px 0 0; }
+.details div { padding-top:11px; border-top:1px solid var(--line); }
+.details dt { color:var(--muted); font-size:10px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.details dd { margin:5px 0 0; color:var(--ink); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
+@media (max-width:800px) { .factGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }.grid { grid-template-columns:1fr; } }
+@media (max-width:480px) { .fact { padding:13px; }.fact strong { font-size:15px; }.card { padding:16px; } }
