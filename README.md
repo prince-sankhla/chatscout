@@ -1,24 +1,25 @@
 # ChatScout
 
-ChatScout is an **India-first discovery platform for Instagram group chats**.
+ChatScout is an **India-first community discovery platform for Instagram, WhatsApp, Telegram and Discord**.
 
-Help users discover and join Instagram communities organized by topics and interests.
+Help users discover and join communities organized by topics, interests, language and location.
 
 ## Current Status
 
-🚀 **Launch-ready MVP implementation**
+🚀 **Launch-ready multi-platform MVP implementation**
 
-The current application includes the public discovery experience, search and filters, community detail/join flows, owner submission, analytics, moderation, Supabase Auth/RLS, and the admin Controller.
+The current application includes the public discovery experience, search and filters, multi-platform community detail/join flows, owner submission, analytics, moderation, Supabase Auth/RLS, and the admin Controller.
 
 ### ✅ Implemented
 
 - Next.js App Router + TypeScript strict mode
 - Tailwind CSS configuration and custom product styling
-- Public community discovery UI
-- Search, category, language, region, age and member filters
+- Public multi-platform community discovery UI
+- Search, category, platform, language, region, age and member filters
 - Community detail pages with trust/health/verification signals
-- Instagram join flow and join analytics
-- Community submission flow
+- Instagram, WhatsApp, Telegram and Discord community links
+- Multi-platform community submission flow
+- Automatic public metadata preview for supported community invite links
 - Reports and moderation workflow
 - Admin authentication and protected Controller routes
 - Admin approval/rejection/edit/archive/restore/delete actions
@@ -26,7 +27,6 @@ The current application includes the public discovery experience, search and fil
 - Analytics and admin audit log
 - Supabase PostgreSQL + RLS
 - Responsive/mobile layout
-- WhatsApp, Telegram and Discord presented as Coming Soon
 - Vercel deployment configuration
 
 ## Tech Stack
