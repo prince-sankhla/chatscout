@@ -15,31 +15,6 @@ const MAX_SEARCH_RESULTS = 50;
 const TRENDING_WINDOW_DAYS = 7;
 const FEATURED_CANDIDATE_LIMIT = 30;
 const FEATURED_LIMIT = 8;
-const PROFESSIONAL_CATEGORY_SLUGS = new Set([
-  "ai-ml",
-  "coding",
-  "web-development",
-  "bca-mca",
-  "college-university",
-  "students",
-  "study-groups",
-  "competitive-exams",
-  "jee-neet",
-  "career-jobs",
-  "cybersecurity",
-  "cloud-devops",
-  "startups-entrepreneurship",
-  "entrepreneurship",
-  "art-design",
-  "books-writing",
-  "finance-investing",
-  "freelance",
-  "networking",
-  "photography",
-  "music",
-  "gaming",
-  "anime-manga",
-]);
 function normalizeSearchTerm(term: string) { return term.trim().replace(/[%_(),.]/g, " ").replace(/\s+/g, " ").slice(0, 100); }
 function queryFailure<T>(error: PostgrestError, message: string): CommunityQueryResult<T> { void error; return { data: null, error: { code: "COMMUNITY_QUERY_FAILED", message } }; }
 function orderColumn(sort: CommunitySort = "newest") { return sort === "members" ? "member_count" : "published_at"; }
@@ -64,11 +39,11 @@ export async function getFeaturedPublishedCommunities(limit = FEATURED_LIMIT): P
   if (error) return queryFailure(error, "Unable to load featured communities.");
   const candidates = (data ?? []).filter((community) => community.platform === "instagram" && (community.member_count ?? 0) >= 70);
   const scored = candidates.map((community) => {
-    const categoryHint = `${community.description ?? ""} ${community.name}`.toLowerCase();
+    const hint = `${community.description ?? ""} ${community.name}`;
     let score = (community.member_count ?? 0) * 2;
     if (community.verification_status === "verified") score += 120;
-    if (/(college|university|student|developer|coding|ai|ml|career|startup|business|writer|book|design|photography|music|education|engineering|technology)/i.test(categoryHint)) score += 40;
-    if (/(meme|ragebait|gooner|edger|flirty|dating|weirdo|mental hospital|slaughter house)/i.test(categoryHint)) score -= 100;
+    if (/(college|university|student|developer|coding|ai|ml|career|startup|business|writer|book|design|photography|music|education|engineering|technology)/i.test(hint)) score += 40;
+    if (/(meme|ragebait|gooner|edger|flirty|dating|weirdo|mental hospital|slaughter house)/i.test(hint)) score -= 100;
     return { community, score };
   }).sort((a, b) => b.score - a.score || (b.community.member_count ?? 0) - (a.community.member_count ?? 0));
   const unique = new Map<string, CommunityRow>();
