@@ -37,22 +37,13 @@ export async function recordAnalyticsEvent(input: { eventName: AnalyticsEventNam
   meta.source = sourceFor(text(meta.source, 60), referrer);
   meta.referrer_host = referrer || null;
   const supabase = createAdminSupabaseClient();
-  const { error } = await supabase.from("analytics_events").insert({
-    event_name: input.eventName,
-    community_id: input.communityId ?? null,
-    category_id: input.categoryId ?? null,
-    anonymous_session_id: uuid(input.anonymousSessionId) ?? ctx.sessionId,
-    metadata: meta,
-  });
+  const { error } = await supabase.from("analytics_events").insert({ event_name: input.eventName, community_id: input.communityId ?? null, category_id: input.categoryId ?? null, anonymous_session_id: uuid(input.anonymousSessionId) ?? ctx.sessionId, metadata: meta });
   return !error;
 }
 
 export function recordCommunityView(communityId: string, metadata?: Record<string, Json>) { return recordAnalyticsEvent({ eventName: "community_view", communityId, metadata }); }
 export function recordJoinClick(communityId: string, metadata?: Record<string, Json>) { return recordAnalyticsEvent({ eventName: "join_click", communityId, metadata }); }
-export function recordSearch(query: string, resultCount?: number, metadata?: Record<string, Json>) {
-  const value = text(query, 100); if (!value) return Promise.resolve(false);
-  return recordAnalyticsEvent({ eventName: "search", metadata: { query: value, ...(typeof resultCount === "number" ? { result_count: resultCount } : {}), ...(metadata ?? {}) } });
-}
+export function recordSearch(query: string, resultCount?: number, metadata?: Record<string, Json>) { const value = text(query, 100); if (!value) return Promise.resolve(false); return recordAnalyticsEvent({ eventName: "search", metadata: { query: value, ...(typeof resultCount === "number" ? { result_count: resultCount } : {}), ...(metadata ?? {}) } }); }
 export function recordCategoryView(categoryId: string, categorySlug: string, metadata?: Record<string, Json>) { return recordAnalyticsEvent({ eventName: "category_view", categoryId, metadata: { category_slug: categorySlug, ...(metadata ?? {}) } }); }
 
 export type AnalyticsRange = 1 | 7 | 30 | 90;
@@ -99,36 +90,33 @@ export async function getAnalyticsDashboardData(range: AnalyticsRange = 7): Prom
       overview.searches++;
       const query = event.metadata && typeof event.metadata === "object" && !Array.isArray(event.metadata) && typeof event.metadata.query === "string" ? event.metadata.query.trim().toLowerCase() : "";
       if (query) searches.set(query, (searches.get(query) ?? 0) + 1);
-    } else if (event.event_name === "category_view") overview.categoryViews++;
+    } else if (event.event_name === "category_view") {
+      overview.categoryViews++;
+      if (event.category_id) { const value = byCategory.get(event.category_id) ?? { views: 0, joins: 0 }; value.views++; byCategory.set(event.category_id, value); }
+    }
     trend.set(keyFor(event.occurred_at), point);
   }
 
   const communityIds = [...byCommunity.keys()];
-  const categoryIds = [...byCategory.keys()];
-  const [communityResult, categoryResult, linksResult] = await Promise.all([
+  const [communityResult, linksResult, categoriesResult] = await Promise.all([
     communityIds.length ? supabase.from("communities").select("id,name").in("id", communityIds) : Promise.resolve({ data: [], error: null }),
-    categoryIds.length ? supabase.from("categories").select("id,name").in("id", categoryIds) : Promise.resolve({ data: [], error: null }),
     communityIds.length ? supabase.from("community_categories").select("community_id,category_id").in("community_id", communityIds) : Promise.resolve({ data: [], error: null }),
+    supabase.from("categories").select("id,name").eq("is_active", true),
   ]);
+
   const links = new Map<string, string[]>();
   for (const link of linksResult.data ?? []) links.set(link.community_id, [...(links.get(link.community_id) ?? []), link.category_id]);
   for (const [communityId, cats] of links) {
     const value = byCommunity.get(communityId); if (!value) continue;
     for (const categoryId of cats) {
       const category = byCategory.get(categoryId) ?? { views: 0, joins: 0 };
-      category.views += value.views; category.joins += value.joins; byCategory.set(categoryId, category);
+      category.views += value.views;
+      category.joins += value.joins;
+      byCategory.set(categoryId, category);
     }
   }
-  const names = new Map((categoryResult.data ?? []).map((item) => [item.id, item.name]));
+  const names = new Map((categoriesResult.data ?? []).map((item) => [item.id, item.name]));
   const communities = (communityResult.data ?? []).map((item) => { const value = byCommunity.get(item.id) ?? { views: 0, joins: 0 }; return { id: item.id, name: item.name, ...value, conversion: value.views ? Number((value.joins / value.views * 100).toFixed(1)) : 0 }; }).sort((a,b) => (b.joins*10+b.views)-(a.joins*10+a.views)).slice(0,10);
-  const categories = [...byCategory.entries()].map(([id,value]) => ({ id, name: names.get(id) ?? "Unknown category", ...value })).sort((a,b) => (b.joins*10+b.views)-(a.joins*10+a.views)).slice(0,10);
-  return {
-    range, since,
-    overview: { ...overview, sessions: sessions.size, conversion: overview.views ? Number((overview.joins / overview.views * 100).toFixed(1)) : 0 },
-    trend: [...trend.entries()].map(([label,value]) => ({ label, ...value })),
-    communities,
-    searches: [...searches.entries()].map(([query,count]) => ({ query,count })).sort((a,b) => b.count-a.count).slice(0,10),
-    categories,
-    sources: [...sources.entries()].map(([source,count]) => ({ source,count })).sort((a,b) => b.count-a.count).slice(0,10),
-  };
+  const categories = [...byCategory.entries()].filter(([id]) => names.has(id)).map(([id,value]) => ({ id, name: names.get(id)!, ...value })).sort((a,b) => (b.joins*10+b.views)-(a.joins*10+a.views)).slice(0,10);
+  return { range, since, overview: { ...overview, sessions: sessions.size, conversion: overview.views ? Number((overview.joins / overview.views * 100).toFixed(1)) : 0 }, trend: [...trend.entries()].map(([label,value]) => ({ label, ...value })), communities, searches: [...searches.entries()].map(([query,count]) => ({ query,count })).sort((a,b) => b.count-a.count).slice(0,10), categories, sources: [...sources.entries()].map(([source,count]) => ({ source,count })).sort((a,b) => b.count-a.count).slice(0,10) };
 }
