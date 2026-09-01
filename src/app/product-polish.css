@@ -81,22 +81,39 @@ body {
   font-weight: 650;
 }
 
+/* Verification belongs in the card header, never over the community artwork. */
+.community-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.community-title-row h3 {
+  min-width: 0;
+  margin: 0;
+}
+
 .community-verified-badge {
-  position: absolute;
-  z-index: 3;
-  top: 10px;
-  right: 10px;
+  position: static;
+  z-index: auto;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 7px;
-  border: 1px solid rgba(255,255,255,.25);
+  padding: 4px 8px;
+  border: 1px solid rgba(34, 197, 94, .35);
   border-radius: 999px;
-  color: #fff;
-  background: rgba(10,10,22,.52);
-  backdrop-filter: blur(8px);
-  font-size: 9px;
+  color: #86efac;
+  background: rgba(34, 197, 94, .12);
+  font-size: 10px;
+  line-height: 1;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.community-verified-badge .icon {
+  color: #4ade80;
 }
 
 .neon-popular a {
@@ -242,6 +259,15 @@ body {
 
   .community-card:hover {
     transform: none;
+  }
+
+  .community-title-row {
+    align-items: flex-start;
+  }
+
+  .community-verified-badge {
+    font-size: 9px;
+    padding: 4px 7px;
   }
 }
 
