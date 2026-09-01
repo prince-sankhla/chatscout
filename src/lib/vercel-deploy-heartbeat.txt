@@ -1,0 +1,3 @@
+ChatScout deployment heartbeat.
+
+This marker keeps the deployment history explicit; no runtime behavior depends on this file.
