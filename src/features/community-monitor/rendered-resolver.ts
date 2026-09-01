@@ -52,6 +52,10 @@ function cleanName(value: string | null | undefined) {
   if (/^(?:instagram|group chat|use the instagram app|join instagram|community name)$/i.test(name)) return null;
   const normalized = name.replace(/[^a-z0-9 ]/gi, "").trim().toLowerCase();
   if (/^(?:directgroup|directgrouplink|direct group link)$/.test(normalized)) return null;
+  if (/^canvastoblobbundle$/.test(normalized)) return null;
+  if (/^(?:instagram|instagram group|instagram group chat|instagram direct|group chat on instagram)$/.test(normalized)) return null;
+  if (/^(?:image|image url|generic image|instagram logo|instagram icon|app icon|favicon)$/.test(normalized)) return null;
+  if (/\b(?:canvas|blob|bundle)\b/.test(normalized) && /bundle/.test(normalized)) return null;
   if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
   return name;
 }

@@ -100,7 +100,6 @@ export async function GET(request: Request) {
         health_last_checked_at: now,
         health_failure_count: failures,
         last_health_error: "Instagram invite could not be verified publicly.",
-        verification_status: shouldArchive ? "broken" : community.verification_status,
         ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}),
       };
       await admin.from("communities").update(update).eq("id", community.id);
@@ -121,7 +120,6 @@ export async function GET(request: Request) {
       health_last_checked_at: new Date().toISOString(),
       health_failure_count: 0,
       last_health_error: null,
-      verification_status: community.verification_status,
       last_remote_name: preview.name ?? community.last_remote_name,
       last_remote_member_count: preview.memberCount ?? community.last_remote_member_count,
     };
@@ -144,6 +142,7 @@ export async function GET(request: Request) {
     // Health monitor is intentionally non-destructive for images.
     // The same rendered resolver is used for observation, but image_path is never
     // replaced automatically because a fetched asset can still be unrelated.
+    // Verification state is also intentionally untouched: health is not verification.
     await admin.from("communities").update(update).eq("id", community.id);
     if (changed || wasUnhealthy) {
       results.changed += changed ? 1 : 0;
