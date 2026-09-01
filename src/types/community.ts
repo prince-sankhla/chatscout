@@ -13,4 +13,5 @@ export type Community = {
   listingAgeLabel?: string;
   healthLabel?: string;
   verificationStatus?: "unverified" | "verified" | "needs_review" | "broken";
+  platform?: "instagram" | "whatsapp" | "telegram" | "discord";
 };
