@@ -126,9 +126,16 @@ function isUsableImage(value: string | null) {
   try {
     const url = new URL(value);
     if (!/^https?:$/i.test(url.protocol)) return false;
+
+    // Instagram exposes a generic site/app artwork asset through
+    // static.cdninstagram.com. It is not the actual group image and can be
+    // returned by Microlink as the page-level preview, so never publish it.
+    if (/^static\.cdninstagram\.com$/i.test(url.hostname)) return false;
+    if (/\/(?:rsrc\.php|shared\/static)\//i.test(url.pathname)) return false;
     if (/(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo|avatar-placeholder|sprite)/i.test(url.pathname)) return false;
+
     return /\.(?:jpe?g|png|webp|avif)(?:[?#].*)?$/i.test(value)
-      || /(?:scontent|fbcdn|cdninstagram)/i.test(`${url.hostname}${url.pathname}`);
+      || /(?:scontent|fbcdn|cdninstagram|lookaside\.fbsbx|fbsbx)/i.test(`${url.hostname}${url.pathname}`);
   } catch {
     return false;
   }
@@ -201,9 +208,9 @@ async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
   const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
 
-  // Instagram's generic page preview image is often the Instagram/Meta placeholder.
-  // Prefer the invite page's explicit group_image_uri or HTML image over Microlink's
-  // generic `image` field so real GC artwork/profile images win.
+  // Prefer explicit group image data over generic page-level previews. The
+  // latter is often Instagram/Meta artwork even when the invite page has a
+  // real community image available elsewhere in the rendered HTML.
   const imageUrl = [structuredImage, htmlImage, providerImage]
     .find((value): value is string => isUsableImage(value)) ?? null;
 
