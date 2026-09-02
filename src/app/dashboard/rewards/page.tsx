@@ -1,0 +1,19 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getOwnerRewardsData } from "@/features/owner-v2/data-access";
+import styles from "../owner.module.css";
+
+function statusLabel(value:string){return value.replaceAll("_"," ").replace(/\b\w/g,(c)=>c.toUpperCase());}
+function statusClass(value:string){return value==="eligible"?styles.success:value==="suspended"?styles.warning:styles.neutral;}
+
+export default async function OwnerRewardsPage(){
+  const data=await getOwnerRewardsData();
+  if(!data)redirect("/submit/login?error=auth");
+  return <main className="page-content"><header className={styles.header}><div><Link href="/dashboard" className="back-link">← Back to dashboard</Link><p className="eyebrow">COMMUNITY REWARDS</p><h1>Monetization readiness</h1><p>Eligible communities may receive relevant brand opportunities. There are no guaranteed campaigns or earnings.</p></div></header>
+    <section className={styles.metrics}><div><span>Communities</span><b>{data.communities.length}</b><small>Owned listings</small></div><div><span>Eligible</span><b>{data.communities.filter(c=>c.monetizationStatus==="eligible").length}</b><small>Based on current trust signals</small></div><div><span>Total earnings</span><b>₹{data.totalEarnings.toLocaleString("en-IN",{maximumFractionDigits:2})}</b><small>Recorded ledger only</small></div><div><span>Available</span><b>₹{data.availableEarnings.toLocaleString("en-IN",{maximumFractionDigits:2})}</b><small>Approved or available ledger entries</small></div></section>
+    <section className={styles.section}><div className={styles.sectionHeading}><div><p className="eyebrow">READINESS</p><h2>Your communities</h2><p>Complete real trust requirements before opportunities become available.</p></div></div>
+      {data.communities.length?<div className={styles.grid}>{data.communities.map(c=><article className={styles.card} key={c.id}><div className={styles.cardBody}><div className={styles.cardTop}><span className={`${styles.badge} ${statusClass(c.monetizationStatus)}`}>{statusLabel(c.monetizationStatus)}</span><span className={`${styles.badge} ${c.verificationStatus==="verified"?styles.success:styles.warning}`}>{statusLabel(c.verificationStatus)}</span></div><h3>{c.name}</h3><div className={styles.meta}>{statusLabel(c.platform)} · {statusLabel(c.status)}</div><div className="owner-readiness"><div className="owner-readiness-bar"><span style={{width:`${c.readinessScore}%`}} /></div><strong>{c.readinessScore}% readiness</strong></div><div className="owner-requirements"><span>{c.requirements.listed?'✓':'○'} Listed</span><span>{c.requirements.profile?'✓':'○'} Profile complete</span><span>{c.requirements.ownership?'✓':'○'} Ownership verified</span><span>{c.requirements.trust?'✓':'○'} Trust signals</span></div><p className="form-note">{c.monetizationStatus==="eligible"?'Your community may be considered for relevant campaigns.':'Keep your listing complete and build verification/trust history. Campaign eligibility is not guaranteed.'}</p><Link className={styles.view} href={`/dashboard/request-update?id=${encodeURIComponent(c.id)}`}>Review community →</Link></div></article>)}</div>:<div className={styles.empty}><h3>Add your first community</h3><p>Verified communities can later become eligible for Community Rewards.</p><Link className="primary-button list-button" href="/submit">List Your GC</Link></div>}
+    </section>
+    <section className={styles.section}><div className={styles.sectionHeading}><div><p className="eyebrow">WHAT&apos;S NEXT</p><h2>Campaign marketplace</h2><p>Brand campaign discovery and campaign execution are reserved for Phase 2 and Phase 3.</p></div></div><div className={styles.empty}><h3>No campaigns available yet.</h3><p>ChatScout does not currently display real campaigns or promise earnings. Future opportunities will be matched to eligible communities.</p></div></section>
+  </main>;
+}
