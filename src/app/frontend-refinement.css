@@ -1,0 +1,118 @@
+/* Final visual refinement pass: presentation-only overrides. */
+
+/* Hero artwork: keep the existing asset, but give the headline the visual priority. */
+.neon-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 390px;
+  overflow: hidden;
+}
+.neon-art img {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 340px) !important;
+  height: auto !important;
+  max-height: 340px;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 34px rgba(36,18,88,.13));
+}
+.hero-headline-rotator {
+  display: block;
+  min-height: 2.04em;
+  overflow: hidden;
+}
+.hero-headline-line {
+  max-width: 100%;
+  will-change: opacity, transform, filter;
+}
+
+/* Route-aware navigation: quiet inactive states, clear current-page signal. */
+.desktop-nav a.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 78%, var(--soft));
+  box-shadow: inset 0 -2px 0 var(--purple);
+}
+.desktop-nav a.owner-nav-link.active {
+  color: var(--cs-gold);
+  background: var(--cs-gold-soft);
+  box-shadow: inset 0 -2px 0 var(--cs-gold);
+}
+.mobile-nav a.active {
+  color: var(--purple);
+  background: color-mix(in srgb, var(--surface) 82%, var(--soft));
+  box-shadow: inset 0 2px 0 var(--purple);
+}
+
+/* Reward CTA: premium, restrained, clearly secondary to discovery. */
+.neon-hero-actions .hero-action.reward-cta {
+  border-color: color-mix(in srgb, var(--cs-gold) 62%, var(--line));
+  color: var(--cs-gold);
+  background: var(--cs-gold-soft);
+}
+.neon-hero-actions .hero-action.reward-cta:hover {
+  border-color: var(--cs-gold);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--cs-gold) 12%, transparent);
+}
+
+/* /for-admins reward callout: deliberate readable light-card contrast. */
+.reward-panel-empty {
+  color: #2f261b;
+  background: #fff7e8;
+  border-color: #d9b86f;
+}
+.reward-panel-empty > .icon { color: #a86f13; }
+.reward-panel-empty strong { color: #2f261b; }
+.reward-panel-empty small { color: #6b5942; }
+html[data-theme="dark"] .reward-panel-empty {
+  color: #fff2d7;
+  background: #21190d;
+  border-color: #765a2a;
+}
+html[data-theme="dark"] .reward-panel-empty > .icon { color: #e2b15c; }
+html[data-theme="dark"] .reward-panel-empty strong { color: #fff2d7; }
+html[data-theme="dark"] .reward-panel-empty small { color: #c9bca5; }
+
+/* Reward dashboard preview: keep the mockup product-like and readable. */
+.preview-empty {
+  border-color: color-mix(in srgb, var(--line) 86%, var(--cs-gold));
+}
+.preview-empty h4 { color: var(--ink); }
+.preview-empty p { color: var(--muted); }
+
+/* Interior discovery rhythm: headings + control bar feel intentional without changing structure. */
+.platform-page .platform-heading { padding-bottom: 28px; }
+.platform-page .toolbar {
+  border-color: color-mix(in srgb, var(--line) 88%, var(--purple));
+  background: color-mix(in srgb, var(--surface) 96%, var(--soft));
+  box-shadow: 0 12px 28px rgba(35,24,70,.045);
+}
+.platform-page .topics a { min-height: 34px; display: inline-flex; align-items: center; }
+
+/* Shared focus treatment across the refinement. */
+.desktop-nav a:focus-visible,
+.mobile-nav a:focus-visible,
+.hero-action:focus-visible,
+.reward-secondary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--purple) 72%, white);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .neon-art { min-height: 320px; }
+  .neon-art img { width: min(100%, 280px) !important; max-height: 280px; }
+  .hero-headline-rotator { min-height: 2.12em; }
+}
+
+@media (max-width: 640px) {
+  .neon-art { min-height: 250px; margin-top: 4px; }
+  .neon-art img { width: min(100%, 220px) !important; max-height: 220px; }
+  .hero-headline-rotator { min-height: 2.3em; }
+  .neon-hero-actions .hero-action { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline-line { animation: none !important; }
+}
