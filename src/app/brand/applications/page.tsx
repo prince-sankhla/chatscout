@@ -1,0 +1,15 @@
+import Link from 'next/link';
+import { requireBrand } from '@/lib/brand/authorization';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { reviewApplication } from '@/features/brand/actions';
+
+type Props={searchParams:Promise<{campaign?:string}>};
+export default async function BrandApplicationsPage({searchParams}:Props){
+  const brand=await requireBrand(); const db=createAdminSupabaseClient() as any; const q=await searchParams;
+  const {data: campaigns}=await db.from('campaigns').select('id,title').eq('brand_user_id',brand.user.id).order('created_at',{ascending:false});
+  const campaignIds=(campaigns??[]).map((c:any)=>c.id); if(!campaignIds.length) return <main className="page-content"><div className="empty"><h3>No applications yet.</h3><p>Create a campaign to receive community applications.</p><Link className="primary-button" href="/brand/campaigns/new">Create campaign</Link></div></main>;
+  let query=db.from('campaign_applications').select('*, campaigns!inner(id,title,brand_user_id), communities!inner(id,name,slug,platform,member_count,language,region,verification_status,health_status,status)').in('campaign_id',campaignIds).order('created_at',{ascending:false});
+  if(q.campaign && campaignIds.includes(q.campaign)) query=query.eq('campaign_id',q.campaign);
+  const {data:apps}=await query;
+  return <main className="page-content"><header className="owner-header"><div><Link href="/brand" className="back-link">← Brand dashboard</Link><p className="eyebrow">APPLICATIONS</p><h1>Community applications</h1><p>Review real applications submitted by verified community administrators. Approvals create a Phase 3-ready participation record.</p></div></header><section className="section"><div className="grid">{apps?.map((a:any)=><article className="card" key={a.id}><div className="cardBody"><div className="cardTop"><span className="badge">{a.status}</span><span className="badge">{a.campaigns.title}</span></div><h3>{a.communities.name}</h3><div className="meta">{a.communities.platform} · {a.communities.member_count?.toLocaleString('en-IN') ?? '—'} members · {a.communities.language ?? '—'}{a.communities.region?` · ${a.communities.region}`:''}</div><div className="meta">{a.communities.verification_status} · {a.communities.health_status}</div>{a.application_note&&<p>{a.application_note}</p>}<div className="cardLinks"><Link className="view" href={`/community/${a.communities.slug}`}>View community →</Link>{a.status==='pending'&&<><form action={reviewApplication}><input type="hidden" name="applicationId" value={a.id}/><input type="hidden" name="status" value="approved"/><button className="primary-button" type="submit">Approve</button></form><form action={reviewApplication}><input type="hidden" name="applicationId" value={a.id}/><input type="hidden" name="status" value="rejected"/><button className="admin-danger" type="submit">Reject</button></form></>}</div></div></article>)}{!apps?.length&&<div className="empty"><h3>No applications found.</h3><p>Approved campaign launches will appear here when administrators apply.</p></div>}</div></section></main>;
+}
