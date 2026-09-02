@@ -7,6 +7,7 @@ import "./launch-readiness.css";
 import "./frontend-redesign.css";
 import "./rewards-landing.css";
 import "./frontend-refinement.css";
+import "./hero-final.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chatscout-ten.vercel.app";
 const rawGoogleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
