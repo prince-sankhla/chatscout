@@ -50,14 +50,7 @@ export async function getFeaturedPublishedCommunities(limit = FEATURED_LIMIT): P
   const { data, error } = await supabase.from("communities").select("*").eq("status", "published").not("image_path", "is", null).order("member_count", { ascending: false, nullsFirst: false }).order("verification_status", { ascending: true }).order("published_at", { ascending: false }).limit(FEATURED_CANDIDATE_LIMIT);
   if (error) return queryFailure(error, "Unable to load featured communities.");
   const candidates = (data ?? []).filter((community) => community.platform === "instagram" && (community.member_count ?? 0) >= 70);
-  const scored = candidates.map((community) => {
-    const hint = `${community.description ?? ""} ${community.name}`;
-    let score = (community.member_count ?? 0) * 2;
-    if (community.verification_status === "verified") score += 120;
-    if (/(college|university|student|developer|coding|ai|ml|career|startup|business|writer|book|design|photography|music|education|engineering|technology)/i.test(hint)) score += 40;
-    if (/(meme|ragebait|gooner|edger|flirty|dating|weirdo|mental hospital|slaughter house)/i.test(hint)) score -= 100;
-    return { community, score };
-  }).sort((a, b) => b.score - a.score || (b.community.member_count ?? 0) - (a.community.member_count ?? 0));
+  const scored = candidates.map((community) => { const hint = `${community.description ?? ""} ${community.name}`; let score = (community.member_count ?? 0) * 2; if (community.verification_status === "verified") score += 120; if (/(college|university|student|developer|coding|ai|ml|career|startup|business|writer|book|design|photography|music|education|engineering|technology)/i.test(hint)) score += 40; if (/(meme|ragebait|gooner|edger|flirty|dating|weirdo|mental hospital|slaughter house)/i.test(hint)) score -= 100; return { community, score }; }).sort((a, b) => b.score - a.score || (b.community.member_count ?? 0) - (a.community.member_count ?? 0));
   const unique = new Map<string, CommunityRow>();
   for (const item of scored) { const key = item.community.name.trim().toLowerCase(); if (!unique.has(key)) unique.set(key, item.community); if (unique.size >= Math.max(1, Math.min(limit, 12))) break; }
   return { data: [...unique.values()], error: null };
@@ -68,32 +61,45 @@ export async function getPublishedRelatedCommunities(communityId: string, limit 
   const supabase = createServerSupabaseClient();
   const { data: sourceLinks, error: sourceError } = await supabase.from("community_categories").select("category_id").eq("community_id", communityId);
   if (sourceError) return queryFailure(sourceError, "Unable to load related communities.");
-  const categoryIds = [...new Set((sourceLinks ?? []).map((link) => link.category_id))];
-  if (!categoryIds.length) return { data: [], error: null };
-  const { data: links, error: linkError } = await supabase.from("community_categories").select("community_id").in("category_id", categoryIds).neq("community_id", communityId);
-  if (linkError) return queryFailure(linkError, "Unable to load related communities.");
-  const ids = [...new Set(links.map((link) => link.community_id))];
-  if (!ids.length) return { data: [], error: null };
-  const { data, error } = await supabase.from("communities").select("*").eq("status", "published").in("id", ids).limit(DISCOVERY_FETCH_LIMIT);
+  const sourceCategoryIds = [...new Set((sourceLinks ?? []).map((link) => link.category_id))];
+  const { data: sourceCommunity, error: sourceError2 } = await supabase.from("communities").select("platform,language,region").eq("id", communityId).maybeSingle();
+  if (sourceError2) return queryFailure(sourceError2, "Unable to load related communities.");
+  let candidateIds: string[] = [];
+  if (sourceCategoryIds.length) {
+    const { data: links, error: linkError } = await supabase.from("community_categories").select("community_id").in("category_id", sourceCategoryIds).neq("community_id", communityId);
+    if (linkError) return queryFailure(linkError, "Unable to load related communities.");
+    candidateIds = [...new Set(links.map((link) => link.community_id))];
+  }
+  if (!candidateIds.length) {
+    let fallback = supabase.from("communities").select("id").eq("status", "published").neq("id", communityId).limit(DISCOVERY_FETCH_LIMIT);
+    if (sourceCommunity.data?.platform) fallback = fallback.eq("platform", sourceCommunity.data.platform);
+    const { data: fallbackRows, error: fallbackError } = await fallback;
+    if (fallbackError) return queryFailure(fallbackError, "Unable to load related communities.");
+    candidateIds = (fallbackRows ?? []).map((row) => row.id);
+  }
+  if (!candidateIds.length) return { data: [], error: null };
+  const [{ data, error }, { data: categoryLinks }] = await Promise.all([
+    supabase.from("communities").select("*").eq("status", "published").in("id", candidateIds).limit(DISCOVERY_FETCH_LIMIT),
+    supabase.from("community_categories").select("community_id,category_id").in("community_id", candidateIds),
+  ]);
   if (error) return queryFailure(error, "Unable to load related communities.");
-
-  const categoryLinks = await supabase.from("community_categories").select("community_id,category_id").in("community_id", ids);
-  const categoryNames = await supabase.from("categories").select("id,name").in("id", [...new Set((categoryLinks.data ?? []).map((link) => link.category_id))]).eq("is_active", true);
-  const names = new Map((categoryNames.data ?? []).map((row) => [row.id, row.name]));
-  const tagsFor = new Map<string, string[]>();
-  for (const link of categoryLinks.data ?? []) { const tag = names.get(link.category_id); if (!tag) continue; const current = tagsFor.get(link.community_id) ?? []; current.push(tag); tagsFor.set(link.community_id, current); }
-  const source = await supabase.from("communities").select("platform,language,region,name").eq("id", communityId).maybeSingle();
-  const sourcePlatform = source.data?.platform;
-  const sourceLanguage = (source.data?.language ?? "").trim().toLowerCase();
-  const sourceRegion = (source.data?.region ?? "").trim().toLowerCase();
-  const sourceTags = new Set((tagsFor.get(communityId) ?? []).map((tag) => tag.toLowerCase()));
+  const categoryIds = [...new Set((categoryLinks ?? []).map((link) => link.category_id))];
+  const { data: categories } = categoryIds.length ? await supabase.from("categories").select("id,name").in("id", categoryIds).eq("is_active", true) : { data: [] as { id: string; name: string }[] };
+  const categoryNameById = new Map((categories ?? []).map((row) => [row.id, row.name]));
+  const candidateTags = new Map<string, Set<string>>();
+  for (const link of categoryLinks ?? []) { const name = categoryNameById.get(link.category_id); if (!name) continue; const current = candidateTags.get(link.community_id) ?? new Set<string>(); current.add(name.toLowerCase()); candidateTags.set(link.community_id, current); }
+  const { data: sourceCategoryRows } = sourceCategoryIds.length ? await supabase.from("categories").select("id,name").in("id", sourceCategoryIds).eq("is_active", true) : { data: [] as { id: string; name: string }[] };
+  const sourceTags = new Set((sourceCategoryRows ?? []).map((row) => row.name.toLowerCase()));
+  const sourcePlatform = sourceCommunity.data?.platform;
+  const sourceLanguage = (sourceCommunity.data?.language ?? "").trim().toLowerCase();
+  const sourceRegion = (sourceCommunity.data?.region ?? "").trim().toLowerCase();
   const scored = (data ?? []).map((community) => {
-    const categorySet = new Set((tagsFor.get(community.id) ?? []).map((tag) => tag.toLowerCase()));
-    const sharedCategories = [...sourceTags].filter((tag) => categorySet.has(tag)).length;
-    const samePlatform = community.platform === sourcePlatform ? 8 : 0;
-    const sameLanguage = sourceLanguage && (community.language ?? "").trim().toLowerCase() === sourceLanguage ? 5 : 0;
-    const sameRegion = sourceRegion && (community.region ?? "").trim().toLowerCase() === sourceRegion ? 5 : 0;
-    const score = sharedCategories * 14 + samePlatform + sameLanguage + sameRegion + imagePriority(community) * 3;
+    const tags = candidateTags.get(community.id) ?? new Set<string>();
+    const sharedTags = [...sourceTags].filter((tag) => tags.has(tag)).length;
+    const samePlatform = sourcePlatform && community.platform === sourcePlatform ? 8 : 0;
+    const sameLanguage = sourceLanguage && (community.language ?? "").trim().toLowerCase() === sourceLanguage ? 6 : 0;
+    const sameRegion = sourceRegion && (community.region ?? "").trim().toLowerCase() === sourceRegion ? 6 : 0;
+    const score = sharedTags * 16 + samePlatform + sameLanguage + sameRegion + imagePriority(community) * 3;
     return { community, score };
   }).sort((a, b) => b.score - a.score || discoveryPriorityCompare(a.community, b.community));
   return { data: scored.slice(0, limit).map((item) => item.community), error: null };
