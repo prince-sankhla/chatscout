@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { AnalyticsEventName, Json } from "@/types/database";
+import { trackGAEvent } from "@/components/analytics/google";
 
 const COOKIE = "cs_analytics_session";
 const STORAGE = "cs_analytics_session";
@@ -38,12 +39,18 @@ export function TrackEvent({ eventName, communityId, categoryId, dedupeKey, meta
   useEffect(() => {
     const key = `cs_tracked:${dedupeKey ?? `${eventName}:${window.location.pathname}:${communityId ?? categoryId ?? ""}`}`;
     try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch { /* best effort */ }
+    const eventMetadata = metadata(extra);
+    trackGAEvent(eventName, {
+      community_id: communityId,
+      category_id: categoryId,
+      ...eventMetadata,
+    });
     const sessionId = getSessionId();
     void fetch("/api/analytics", {
       method: "POST",
       headers: { "content-type": "application/json" },
       keepalive: true,
-      body: JSON.stringify({ eventName, communityId, categoryId, anonymousSessionId: sessionId, metadata: metadata(extra) }),
+      body: JSON.stringify({ eventName, communityId, categoryId, anonymousSessionId: sessionId, metadata: eventMetadata }),
     }).catch(() => undefined);
   }, [eventName, communityId, categoryId, dedupeKey, extra]);
   return null;
