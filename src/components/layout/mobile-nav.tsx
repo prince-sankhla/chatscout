@@ -19,12 +19,12 @@ export function MobileNav() {
     const supabase = createBrowserSupabaseClient();
     let mounted = true;
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (mounted) setAuthenticated(Boolean(data.session?.user));
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) setAuthenticated(Boolean(session?.user));
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthenticated(Boolean(session?.user));
+      if (mounted) setAuthenticated(Boolean(session?.user));
     });
 
     return () => {
@@ -37,5 +37,3 @@ export function MobileNav() {
 
   return <nav className="mobile-nav" aria-label="Mobile navigation"><ActiveMobileNav authenticated={authenticated} /></nav>;
 }
-
-// Production deploy trigger: keep this component isolated from server-only auth dependencies.
