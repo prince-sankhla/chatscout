@@ -30,7 +30,11 @@ export function CommunityCard({ community, compact = false }: { community: Commu
       <div className="community-title-row">
         <h3><Link href={`/community/${community.slug}`}>{community.name}</Link></h3>
       </div>
-      <div className="tag-row"><span className={`platform-tag platform-tag-${platform}`}><Icon name={platformMeta.icon} size={12} />{platformMeta.label}</span>{community.tags.filter((tag) => tag.toLowerCase() !== platformMeta.label.toLowerCase()).map((tag) => <span key={tag}>{tag}</span>)}</div>
+      <div className="tag-row">
+        <Link className="community-category-tag" href={`/search?q=${encodeURIComponent(community.category)}`}><Icon name="spark" size={11} />{community.category}</Link>
+        <span className={`platform-tag platform-tag-${platform}`}><Icon name={platformMeta.icon} size={12} />{platformMeta.label}</span>
+        {community.tags.filter((tag) => tag.toLowerCase() !== platformMeta.label.toLowerCase() && tag.toLowerCase() !== community.category.toLowerCase()).slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}
+      </div>
       <div className="community-trust-row"><span><Icon name="users" size={15} />{community.membersLabel}</span><span>{community.listingAgeLabel ?? "Recently listed"}</span></div>
       {!compact && <p className="community-description">{community.description}</p>}
       <Link className={`join-button join-button-${platform}`} href={`/community/${community.slug}`}><Icon name={platformMeta.icon} size={17} />View on {platformMeta.label}</Link>
