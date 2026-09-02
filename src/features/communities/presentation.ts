@@ -82,5 +82,13 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
     for(const item of signed??[]){if(item.path&&item.signedUrl)imageMap.set(item.path,item.signedUrl);}
   }
 
-  return communities.map((community)=>buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageMap.get(community.image_path??"")??null));
+  const presentations=await Promise.all(communities.map(async(community)=>{
+    let imageUrl=imageMap.get(community.image_path??"")??null;
+    if(!imageUrl&&community.platform==="instagram"&&community.invite_url){
+      try{imageUrl=await resolveFallbackImage(community.invite_url);}catch{imageUrl=null;}
+    }
+    return buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageUrl);
+  }));
+
+  return presentations;
 }
