@@ -4,7 +4,11 @@ import Script from "next/script";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
+// GA4 Measurement ID is public client-side configuration.
+// Keep it in the source as a fallback so tracking cannot silently disappear
+// when the Vercel environment variable is missing from a production build.
+export const GA_MEASUREMENT_ID =
+  process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "G-6GVFHEL5PF";
 
 declare global {
   interface Window {
@@ -13,7 +17,10 @@ declare global {
   }
 }
 
-export function trackGAEvent(eventName: string, parameters: Record<string, unknown> = {}) {
+export function trackGAEvent(
+  eventName: string,
+  parameters: Record<string, unknown> = {},
+) {
   if (!GA_MEASUREMENT_ID || typeof window === "undefined" || typeof window.gtag !== "function") return;
   window.gtag("event", eventName, parameters);
 }
@@ -26,9 +33,9 @@ export function GoogleAnalytics() {
       <Script
         id="google-analytics"
         src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`}
-        strategy="afterInteractive"
+        strategy="beforeInteractive"
       />
-      <Script id="google-analytics-config" strategy="afterInteractive">
+      <Script id="google-analytics-config" strategy="beforeInteractive">
         {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config','${GA_MEASUREMENT_ID}',{send_page_view:false});`}
       </Script>
       <GoogleAnalyticsPageView />
