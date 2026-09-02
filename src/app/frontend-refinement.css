@@ -14,7 +14,7 @@
 .mobile-nav a.active {
   color: var(--purple);
   background: color-mix(in srgb, var(--surface) 82%, var(--soft));
-  box-shadow: inset 0 2px 0 var(--purple);
+  box-shadow: inset 2px 0 0 var(--purple);
 }
 
 /* Reward CTA: premium, restrained, clearly secondary to discovery. */
@@ -69,4 +69,77 @@ html[data-theme="dark"] .reward-panel-empty small { color: #c9bca5; }
 .reward-secondary:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--purple) 72%, white);
   outline-offset: 2px;
+}
+
+/* Compact quick-discovery rail: 2 readable mini-cards instead of inheriting the 3-column full-card grid. */
+.newly-card .compact-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+.newly-card .compact-grid .community-card {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.newly-card .compact-grid .community-art {
+  height: 88px !important;
+  min-height: 88px !important;
+  width: 100% !important;
+}
+.newly-card .compact-grid .community-info {
+  min-width: 0 !important;
+  padding: 9px !important;
+}
+.newly-card .compact-grid .community-title-row {
+  min-width: 0 !important;
+}
+.newly-card .compact-grid .community-title-row h3,
+.newly-card .compact-grid .community-title-row h3 a {
+  min-width: 0 !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+.newly-card .compact-grid .tag-row {
+  margin: 7px 0 !important;
+  gap: 4px !important;
+}
+.newly-card .compact-grid .tag-row > * {
+  max-width: 100% !important;
+  font-size: 8px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.newly-card .compact-grid .community-trust-row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  font-size: 8px !important;
+  line-height: 1.25 !important;
+}
+.newly-card .compact-grid .community-trust-row > span {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.newly-card .compact-grid .join-button {
+  min-height: 31px !important;
+  margin-top: 7px !important;
+  padding: 7px 8px !important;
+  font-size: 9px !important;
+}
+.newly-card .compact-grid .community-platform-pill,
+.newly-card .compact-grid .community-status-overlay,
+.newly-card .compact-grid .community-description {
+  display: none !important;
+}
+@media (max-width: 520px) {
+  .newly-card .compact-grid { grid-template-columns: 1fr !important; }
 }
