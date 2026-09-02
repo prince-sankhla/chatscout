@@ -1,5 +1,6 @@
 import "server-only";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { IconName } from "@/components/ui/icon";
 
 export type CategoryNode = {
   id: string;
@@ -69,6 +70,12 @@ export async function hasActiveChildren(categoryId: string): Promise<boolean> {
   return !error && (count ?? 0) > 0;
 }
 
-export function categoryIcon(iconKey: string | null) {
-  return iconKey ?? "spark";
+export function categoryIcon(iconKey: string | null): IconName {
+  const validIcons: IconName[] = [
+    "search", "home", "grid", "trend", "bookmark", "menu", "bell", "moon", "arrow",
+    "users", "spark", "instagram", "whatsapp", "telegram", "discord", "close", "shield",
+    "rocket", "bolt", "heart", "briefcase", "graduation", "gamepad", "flame", "music",
+    "map", "code", "share", "flag", "globe", "check",
+  ];
+  return validIcons.includes(iconKey as IconName) ? (iconKey as IconName) : "spark";
 }
