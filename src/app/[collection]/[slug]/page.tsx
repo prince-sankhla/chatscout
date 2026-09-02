@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { TrackEvent } from "@/components/analytics/track-event";
 import { CommunityGrid } from "@/components/community/community-grid";
 import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
@@ -37,6 +36,13 @@ async function loadOpportunity(collection: string, slug: string) {
   return { opportunity, communities: result.data };
 }
 
+function categoryLabel(slug: string) {
+  return slug
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { collection, slug } = await params;
   const data = await loadOpportunity(collection, slug);
@@ -44,7 +50,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Collection not found | ChatScout", robots: { index: false, follow: true } };
   }
   const { opportunity } = data;
-  const collectionLabel = COLLECTION_LABELS[opportunity.routeCollection];
   const canonical = `${SITE_URL}/${opportunity.routeCollection}/${opportunity.slug}`;
   return {
     metadataBase: new URL(SITE_URL),
@@ -66,7 +71,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: opportunity.description,
       images: [`${SITE_URL}/brand/chatscout-logo.png`],
     },
-    other: { "x-chatScout-collection": collectionLabel },
   };
 }
 
@@ -108,13 +112,11 @@ export default async function DemandLandingPage({ params }: Props) {
 
   return (
     <PageShell>
-      <TrackEvent eventName="category_view" dedupeKey={`demand:${opportunity.routeCollection}:${opportunity.slug}`} />
       <main className="platform-page">
         <section className="platform-heading">
           <nav aria-label="Breadcrumb" className="detail-breadcrumbs">
             <Link href="/">Home</Link><span>›</span>
-            <Link href="/categories">Categories</Link><span>›</span>
-            <Link href={categoryUrl}>{opportunity.categorySlug.replaceAll("-", " ")}</Link><span>›</span>
+            <Link href={categoryUrl}>{categoryLabel(opportunity.categorySlug)}</Link><span>›</span>
             <span aria-current="page">{opportunity.title}</span>
           </nav>
           <p className="eyebrow">CHATSCOUT SEARCH DEMAND</p>
