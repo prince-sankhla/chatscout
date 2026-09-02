@@ -20,14 +20,12 @@ export async function getHomepageFeaturedCommunities(): Promise<{ data: Communit
   const selected: CommunityRow[] = [];
 
   for (const platform of Object.keys(HOME_PAGE_QUOTAS) as Platform[]) {
+    // Keep the DB query deliberately simple; ranking happens in application code.
     const { data, error } = await supabase
       .from("communities")
       .select("*")
       .eq("status", "published")
       .eq("platform", platform)
-      .order("member_count", { ascending: false, nullsFirst: false })
-      .order("verification_status", { ascending: true })
-      .order("published_at", { ascending: false, nullsFirst: false })
       .limit(40);
 
     if (error) return { data: [], error: "Unable to load homepage communities." };
