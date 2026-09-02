@@ -1,16 +1,19 @@
-/* ChatScout hero: restore the original two-column composition and keep the newer rotating headline + Community Rewards CTA. */
+/* Hero composition fix: preserve the original main + rail layout, but give the hero enough
+   horizontal room so the rotating two-line headline never collapses into 3 lines. */
 
 .neon-layout {
   width: min(var(--cs-max), 100%) !important;
   margin: 0 auto !important;
-  padding: 18px clamp(16px, 2.5vw, 32px) 64px !important;
+  padding: 18px clamp(16px, 2vw, 24px) 64px !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 300px !important;
+  grid-template-columns: minmax(0, 1fr) 280px !important;
   align-items: start !important;
-  column-gap: 16px !important;
+  column-gap: 12px !important;
 }
 
-.neon-main { min-width: 0 !important; }
+.neon-main {
+  min-width: 0 !important;
+}
 
 .neon-rail {
   margin-top: 0 !important;
@@ -33,10 +36,10 @@
 .neon-hero {
   min-height: 560px !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(390px, .9fr) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(350px, .82fr) !important;
   align-items: center !important;
-  gap: 4px !important;
-  padding: 42px 42px 38px !important;
+  gap: 8px !important;
+  padding: 42px clamp(30px, 3.2vw, 46px) 38px !important;
   overflow: hidden !important;
   border: 1px solid var(--line) !important;
   border-radius: 30px !important;
@@ -50,7 +53,7 @@ html[data-theme="dark"] .neon-hero {
 
 .neon-copy {
   width: 100% !important;
-  max-width: 700px !important;
+  max-width: 100% !important;
   min-width: 0 !important;
   position: relative !important;
   z-index: 4 !important;
@@ -58,9 +61,9 @@ html[data-theme="dark"] .neon-hero {
 
 .neon-copy h1 {
   width: 100% !important;
-  max-width: 610px !important;
+  max-width: 100% !important;
   margin: 0 !important;
-  font-size: clamp(48px, 5.35vw, 76px) !important;
+  font-size: clamp(48px, 4.75vw, 70px) !important;
   line-height: .98 !important;
   letter-spacing: -.075em !important;
 }
@@ -69,7 +72,7 @@ html[data-theme="dark"] .neon-hero {
   position: relative !important;
   display: block !important;
   width: 100% !important;
-  min-height: 148px !important;
+  min-height: 2.02em !important;
   overflow: visible !important;
 }
 
@@ -77,10 +80,10 @@ html[data-theme="dark"] .neon-hero {
   position: absolute !important;
   inset: 0 auto auto 0 !important;
   display: block !important;
-  width: 100% !important;
-  max-width: 610px !important;
-  white-space: normal !important;
-  text-wrap: balance !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  text-wrap: nowrap !important;
   overflow: visible !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
@@ -132,7 +135,7 @@ html[data-theme="dark"] .neon-hero {
   min-width: 0 !important;
   min-height: 430px !important;
   height: 100% !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   opacity: 1 !important;
   z-index: 1 !important;
 }
@@ -141,13 +144,13 @@ html[data-theme="dark"] .neon-hero {
   position: relative !important;
   z-index: 2 !important;
   display: block !important;
-  width: 520px !important;
-  max-width: none !important;
-  max-height: 520px !important;
+  width: min(100%, 455px) !important;
+  max-width: 455px !important;
+  max-height: 455px !important;
   height: auto !important;
   aspect-ratio: 1 !important;
   object-fit: contain !important;
-  transform: translate(18px, -2px) !important;
+  transform: none !important;
   transform-origin: center center !important;
   filter: drop-shadow(0 28px 44px rgba(36,18,88,.20)) !important;
 }
@@ -157,18 +160,18 @@ html[data-theme="dark"] .neon-hero {
 
 @media (max-width: 1180px) and (min-width: 1040px) {
   .neon-layout {
-    grid-template-columns: minmax(0, 1fr) 290px !important;
-    column-gap: 14px !important;
+    grid-template-columns: minmax(0, 1fr) 270px !important;
+    column-gap: 12px !important;
   }
 
   .neon-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(350px, .9fr) !important;
-    gap: 2px !important;
-    padding-inline: 34px !important;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr) !important;
+    gap: 6px !important;
+    padding-inline: 30px !important;
   }
 
   .neon-copy h1 {
-    font-size: clamp(44px, 5vw, 66px) !important;
+    font-size: clamp(44px, 4.95vw, 62px) !important;
   }
 
   .neon-art {
@@ -176,9 +179,9 @@ html[data-theme="dark"] .neon-hero {
   }
 
   .neon-art img {
-    width: 480px !important;
-    max-width: none !important;
-    max-height: 480px !important;
+    width: min(100%, 390px) !important;
+    max-width: 390px !important;
+    max-height: 390px !important;
   }
 }
 
@@ -195,13 +198,17 @@ html[data-theme="dark"] .neon-hero {
   }
 
   .neon-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, .82fr) !important;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, .78fr) !important;
+  }
+
+  .neon-copy h1 {
+    font-size: clamp(44px, 5.6vw, 62px) !important;
   }
 
   .neon-art img {
-    width: 440px !important;
-    max-width: none !important;
-    max-height: 440px !important;
+    width: min(100%, 390px) !important;
+    max-width: 390px !important;
+    max-height: 390px !important;
   }
 }
 
@@ -232,10 +239,6 @@ html[data-theme="dark"] .neon-hero {
     text-wrap: balance !important;
   }
 
-  .neon-hero-actions {
-    flex-direction: row !important;
-  }
-
   .neon-art {
     min-height: 320px !important;
     height: 320px !important;
@@ -243,10 +246,9 @@ html[data-theme="dark"] .neon-hero {
   }
 
   .neon-art img {
-    width: 380px !important;
-    max-width: 380px !important;
-    max-height: 380px !important;
-    transform: none !important;
+    width: 300px !important;
+    max-width: 300px !important;
+    max-height: 300px !important;
   }
 }
 
@@ -261,8 +263,8 @@ html[data-theme="dark"] .neon-hero {
   }
 
   .neon-art img {
-    width: 320px !important;
-    max-width: 320px !important;
-    max-height: 320px !important;
+    width: 280px !important;
+    max-width: 280px !important;
+    max-height: 280px !important;
   }
 }
