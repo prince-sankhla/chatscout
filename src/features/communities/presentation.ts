@@ -47,7 +47,7 @@ function buildPresentation(community:CommunityRow,categoryNames:string[],imageUr
 export async function toCommunityPresentation(community:CommunityRow):Promise<Community>{
   const categoryNames=await getCommunityCategories(community.id);
   let imageUrl=await getPublishedCommunityImageUrl(community.image_path);
-  if(!imageUrl&&community.platform==="instagram"&&community.invite_url){
+  if(!imageUrl&&community.invite_url){
     try{imageUrl=await resolveFallbackImage(community.invite_url);}catch{imageUrl=null;}
   }
   return buildPresentation(community,categoryNames,imageUrl);
@@ -84,7 +84,7 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
 
   const presentations=await Promise.all(communities.map(async(community)=>{
     let imageUrl=imageMap.get(community.image_path??"")??null;
-    if(!imageUrl&&community.platform==="instagram"&&community.invite_url){
+    if(!imageUrl&&community.invite_url){
       try{imageUrl=await resolveFallbackImage(community.invite_url);}catch{imageUrl=null;}
     }
     return buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageUrl);
