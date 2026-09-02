@@ -17,21 +17,32 @@ function score(community: CommunityRow) {
 
 export async function getHomepageFeaturedCommunities(): Promise<{ data: CommunityRow[]; error: string | null }> {
   const supabase = createServerSupabaseClient();
-  const selected: CommunityRow[] = [];
 
+  // One DB read for the whole homepage instead of four sequential platform queries.
+  // This keeps the first paint fast while preserving the exact 15/10/10/10 quotas.
+  const { data, error } = await supabase
+    .from("communities")
+    .select("*")
+    .eq("status", "published")
+    .limit(500);
+
+  if (error) return { data: [], error: "Unable to load homepage communities." };
+
+  const byPlatform = new Map<Platform, CommunityRow[]>();
   for (const platform of Object.keys(HOME_PAGE_QUOTAS) as Platform[]) {
-    // Keep the DB query deliberately simple; ranking happens in application code.
-    const { data, error } = await supabase
-      .from("communities")
-      .select("*")
-      .eq("status", "published")
-      .eq("platform", platform)
-      .limit(40);
+    byPlatform.set(platform, []);
+  }
 
-    if (error) return { data: [], error: "Unable to load homepage communities." };
+  for (const community of data ?? []) {
+    if (byPlatform.has(community.platform as Platform)) {
+      byPlatform.get(community.platform as Platform)!.push(community);
+    }
+  }
 
+  const selected: CommunityRow[] = [];
+  for (const platform of Object.keys(HOME_PAGE_QUOTAS) as Platform[]) {
     selected.push(
-      ...(data ?? [])
+      ...(byPlatform.get(platform) ?? [])
         .sort((a, b) => score(b) - score(a))
         .slice(0, HOME_PAGE_QUOTAS[platform]),
     );
