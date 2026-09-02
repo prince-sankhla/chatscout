@@ -1,0 +1,12 @@
+import Link from "next/link";
+import { requireAdminUser } from "@/lib/supabase/auth";
+import { getPendingClaims } from "@/features/claims/data-access";
+import { approveClaim, rejectClaim } from "@/features/claims/actions";
+
+function dateLabel(value: string) { return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
+
+export default async function AdminClaimsPage() {
+  await requireAdminUser();
+  const claims = await getPendingClaims();
+  return <main className="admin-page"><header className="admin-header"><div><Link href="/admin" className="back-link">← Back to control center</Link><p className="eyebrow">CHATSCOUT ADMIN</p><h1>Community claims</h1><p>Manually verify ownership codes before granting edit rights.</p></div></header><section className="admin-section"><div className="admin-section-heading"><h2>Pending claims</h2><span>{claims.length}</span></div>{claims.length === 0 ? <p className="admin-empty">No pending claims.</p> : <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Community</th><th>Platform / link</th><th>Code</th><th>Requester</th><th>Submitted</th><th>Actions</th></tr></thead><tbody>{claims.map((claim) => <tr key={claim.id}><td><Link href={`/community/${claim.community?.slug ?? ""}`}>{claim.community?.name ?? "Unknown community"}</Link></td><td>{claim.community?.platform ?? "—"}<br /><a href={claim.community?.invite_url ?? "#"} target="_blank" rel="noreferrer">Open community ↗</a></td><td><strong>{claim.verification_code}</strong></td><td>{claim.userName}<br /><small>{claim.userEmail ?? "Email unavailable"}</small></td><td>{dateLabel(claim.created_at)}</td><td><div className="admin-action-row"><form action={approveClaim}><input type="hidden" name="claimRequestId" value={claim.id} /><button className="primary-button" type="submit">Approve</button></form><form action={rejectClaim}><input type="hidden" name="claimRequestId" value={claim.id} /><button className="secondary-button" type="submit">Reject</button></form></div></td></tr>)}</tbody></table></div>}</section></main>;
+}

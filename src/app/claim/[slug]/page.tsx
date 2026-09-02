@@ -1,0 +1,20 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getClaimCommunity, getMyClaimState } from "@/features/claims/data-access";
+import { newClaimCode, submitClaim } from "@/features/claims/actions";
+import { PageShell } from "@/components/layout/page-shell";
+
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ status?: string; error?: string }> };
+
+export default async function ClaimPage({ params, searchParams }: Props) {
+  const slug = (await params).slug;
+  const query = await searchParams;
+  const community = await getClaimCommunity(slug);
+  if (!community) redirect("/");
+  const state = await getMyClaimState(community.id);
+  if (!state.user) redirect(`/submit/login?error=auth`);
+  if (community.claim_status === "claimed") return <PageShell><main className="page-content form-page"><Link href={`/community/${community.slug}`} className="back-link">← Back to community</Link><section className="form-panel"><p className="eyebrow">OWNER VERIFIED</p><h1>This community is already claimed.</h1><p className="form-intro">Only the verified owner can manage this listing.</p></section></main></PageShell>;
+  if (query.status === "pending" || state.pending) return <PageShell><main className="page-content form-page"><Link href={`/community/${community.slug}`} className="back-link">← Back to community</Link><section className="form-panel"><p className="eyebrow">CLAIM SUBMITTED</p><h1>Verification is pending.</h1><p className="form-intro">ChatScout will manually check the community for the verification code. You will be notified when the claim is approved or rejected.</p><Link className="primary-button" href={`/community/${community.slug}`}>Return to community</Link></section></main></PageShell>;
+  const code = newClaimCode();
+  return <PageShell><main className="page-content form-page"><Link href={`/community/${community.slug}`} className="back-link">← Back to community</Link><section className="form-panel"><p className="eyebrow">CLAIM COMMUNITY</p><h1>Is this your community?</h1><p className="form-intro">Add the code below to the community bio, description, or a pinned message for the next 24 hours. ChatScout will use it to verify that you control the community.</p><div className="claim-code">{code}</div><ol className="claim-steps"><li>Open the {community.platform} community.</li><li>Add <strong>{code}</strong> to its bio, description, or pinned message.</li><li>Leave it visible for up to 24 hours while our team reviews the claim.</li></ol>{query.error && <p className="form-message error">We could not submit the claim. Please try again.</p>}<form action={submitClaim}><input type="hidden" name="communityId" value={community.id} /><input type="hidden" name="slug" value={community.slug} /><input type="hidden" name="verificationCode" value={code} /><button className="primary-button" type="submit">I've added it — submit for review</button></form><p className="form-note">Manual review is used for Instagram, Telegram, Discord, and WhatsApp.</p></section></main></PageShell>;
+}

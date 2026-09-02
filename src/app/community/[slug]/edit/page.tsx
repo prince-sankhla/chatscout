@@ -1,0 +1,16 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getOwnerEditCommunity } from "@/features/claims/data-access";
+import { updateClaimedCommunity } from "@/features/claims/edit-actions";
+import { PageShell } from "@/components/layout/page-shell";
+
+type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ saved?: string; error?: string }> };
+
+export default async function CommunityEditPage({ params, searchParams }: Props) {
+  const slug = (await params).slug;
+  const query = await searchParams;
+  const data = await getOwnerEditCommunity(slug);
+  if (!data) redirect(`/community/${encodeURIComponent(slug)}`);
+  const { community, categories } = data;
+  return <PageShell><main className="page-content form-page"><Link href={`/community/${community.slug}`} className="back-link">← Back to community</Link><section className="form-panel"><p className="eyebrow">COMMUNITY EDITOR</p><h1>Edit your community</h1><p className="form-intro">Changes go live immediately. Only the verified owner or an internal ChatScout admin can edit this listing.</p>{query.saved && <p className="form-message success">Your community was updated.</p>}{query.error === "required" && <p className="form-message error">Name, description, and invite link are required.</p>}{query.error === "image" && <p className="form-message error">Image must be JPG, PNG, WebP, or AVIF and no larger than 5 MB.</p>}{query.error === "database" && <p className="form-message error">The update could not be saved. Please try again.</p>}<form action={updateClaimedCommunity} encType="multipart/form-data" className="form-stack"><input type="hidden" name="slug" value={community.slug} /><input type="hidden" name="communityId" value={community.id} /><label>Name<input name="name" defaultValue={community.name} maxLength={120} required /></label><label>Description<textarea name="description" defaultValue={community.description} maxLength={2000} required /></label><label>Community link<input name="inviteUrl" defaultValue={community.invite_url} maxLength={1000} required /></label><label>Category<select name="categoryId" defaultValue={data.categoryId ?? ""}><option value="">No category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label><label>Language<input name="language" defaultValue={community.language ?? ""} maxLength={80} /></label><label>Region<input name="region" defaultValue={community.region ?? ""} maxLength={120} /></label><label>Community rules<textarea name="communityRules" defaultValue={community.community_rules ?? ""} maxLength={2000} /></label><label>Eligibility<input name="eligibility" defaultValue={community.eligibility ?? ""} maxLength={500} /></label><label>Topics & restrictions<textarea name="restrictions" defaultValue={community.restrictions ?? ""} maxLength={1000} /></label><label>Age restriction<input name="ageRestriction" defaultValue={community.age_restriction ?? ""} maxLength={120} /></label><label>Replace image<input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/avif" /></label><button className="primary-button" type="submit">Save changes</button></form></section></main></PageShell>;
+}
