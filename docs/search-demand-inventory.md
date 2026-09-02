@@ -27,7 +27,7 @@ Search volume is recorded only when a public third-party snapshot exposed a figu
 | stock market whatsapp group | 1,400 India (Ahrefs snapshot) | WhatsApp | Finance & Investing | Tier 2 | 0 mapped | — | High demand; insufficient supply |
 | friendship whatsapp group | 1,300 India (Semrush snapshot) | WhatsApp | Random & Friends | Tier 2 | 1 direct-category listing | — | Demand exists; supply below index threshold |
 | private job whatsapp group link | 1,000 India (Semrush snapshot) | WhatsApp | Career & Jobs | Tier 2 | 0 mapped | — | Demand exists; insufficient supply |
-| mallu telegram group | 8,100 India (Semrush snapshot) | Telegram | Language / Regional | Tier 2 | 0 dedicated Tamil/Malayalam landing | — | Strong demand signal; taxonomy/supply needs expansion |
+| mallu telegram group | 8,100 India (Semrush snapshot) | Telegram | Language / Regional | Tier 2 | 0 dedicated landing | — | Strong demand signal; taxonomy/supply needs expansion |
 | telegram group link malayalam | 3,600 India (Semrush snapshot) | Telegram | Language / Regional | Tier 2 | 0 dedicated landing | — | Strong long-tail signal; supply needs expansion |
 | thund telegram group | 720 India (Semrush snapshot) | Telegram | Niche / Other | Tier 4 | 0 mapped | — | Niche query; not enough evidence for a standalone page |
 | study WhatsApp group | Unavailable | WhatsApp | Study & Education | Tier 2 | 6 category/platform | /whatsapp-groups/study | Implemented |
@@ -51,7 +51,7 @@ Search volume is recorded only when a public third-party snapshot exposed a figu
 
 ## Supply leaders
 
-The strongest current supply-to-demand fits are coding on Telegram (28), jobs on Telegram (26), coding on Discord (20), gaming on Discord (15), study on Telegram (35), and student Instagram group chats via the College Students taxonomy (11). These are the safest places to build SEO landing pages now because the page can immediately satisfy the join intent with multiple real listings.
+The strongest current supply-to-demand fits are study on Telegram (35), coding on Telegram (28), jobs on Telegram (26), coding on Discord (20), gaming on Discord (15), and student Instagram group chats via the College Students taxonomy (11). These are the safest places to build SEO landing pages now because the page can immediately satisfy the join intent with multiple real listings.
 
 ## Demand with insufficient supply
 
@@ -59,7 +59,7 @@ The most important supply gaps are Tamil WhatsApp groups, news WhatsApp groups, 
 
 ## Data-quality findings
 
-As of the research pass, ChatScout has 326 published communities: Discord 64, Instagram 98, Telegram 154, and WhatsApp 14. Published verification status is still mostly unverified: Discord 64, Instagram 90 unverified + 8 verified, Telegram 154, WhatsApp 14. Source URLs are missing for all 64 Discord listings, 93 Instagram listings, all 154 Telegram listings, and all 14 WhatsApp listings. Member counts are missing on 5 Discord, 17 Instagram and 11 WhatsApp listings; Telegram member counts are present for the current inventory.
+As of the research pass, ChatScout has **330 published communities**: Discord 64, Instagram 98, Telegram 154, and WhatsApp 14. Published verification status is still mostly unverified: Discord 64, Instagram 90 unverified + 8 verified, Telegram 154, WhatsApp 14. Source URLs are missing for all 64 Discord listings, 93 Instagram listings, all 154 Telegram listings, and all 14 WhatsApp listings. Member counts are missing on 5 Discord, 17 Instagram and 11 WhatsApp listings; Telegram member counts are present for the current inventory.
 
 The main practical implication is that the next data-collection push should prioritize WhatsApp supply and add source URLs to high-traffic/high-intent listings before scaling SEO pages further.
 
@@ -71,7 +71,7 @@ Public SEO snapshots used for demand validation included Semrush website keyword
 - Ahrefs: `whtsagrouplinks.com` exposed Tamil WhatsApp group link 5K, news WhatsApp group link 3K, stock market WhatsApp group 1.4K, YouTube subscribe WhatsApp group 3.7K, YouTube WhatsApp group 1.4K.
 - Semrush: `whatsgrouplink.com` exposed friendship WhatsApp group 1.3K (India, Jul 2026).
 - Semrush: `pvtjob.in` exposed private job WhatsApp group link 1K (India, May 2026).
-- Semrush: `groupsortelegram.com` exposed mallu Telegram group 8.1K (India, May 2026) and 7? related long-tail terms in the same dataset; the inventory above keeps only the clean, relevant query signals.
+- Semrush: `groupsortelegram.com` exposed mallu Telegram group 8.1K (India, May 2026) and `telegram group link 18 malayalam` 3.6K in a later June snapshot from `telekit.link`.
 - Clicks.so reported `discord servers` at 201K monthly searches in its Aug 2026 Discord.com keyword analysis.
 
 ## Implementation notes
