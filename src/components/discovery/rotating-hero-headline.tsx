@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 
 const MESSAGES = [
   <>Find Your Next<br />Group Chat.</>,
-  <>List Your Group.<br />Get Rewarded.</>,
-  <>Discover Communities.<br />Unlock Rewards.</>,
-  <>Find Communities.<br />Unlock Opportunities.</>,
+  <>List Your Group<br />Get Paid.</>,
+  <>Discover Communities<br />Unlock Rewards.</>,
+  <>Find Communities<br />Unlock Opportunities.</>,
 ];
 
 export function RotatingHeroHeadline() {
@@ -30,7 +30,11 @@ export function RotatingHeroHeadline() {
   }, [reducedMotion]);
 
   return (
-    <span className={`hero-headline-rotator ${reducedMotion ? "is-reduced" : ""}`} aria-live="polite" aria-atomic="true">
+    <span
+      className={`hero-headline-rotator ${reducedMotion ? "is-reduced" : ""}`}
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <span key={index} className="hero-headline-line">{MESSAGES[index]}</span>
     </span>
   );
