@@ -20,12 +20,22 @@
   filter: drop-shadow(0 22px 34px rgba(36,18,88,.13));
 }
 .hero-headline-rotator {
+  position: relative;
   display: block;
-  min-height: 2.04em;
-  overflow: hidden;
+  min-height: 2.08em;
+  overflow: visible;
+  width: 100%;
 }
 .hero-headline-line {
+  position: absolute;
+  inset: 0 auto auto 0;
+  display: block;
+  width: 100%;
   max-width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-wrap: balance;
   will-change: opacity, transform, filter;
 }
 
@@ -110,6 +120,7 @@ html[data-theme="dark"] .reward-panel-empty small { color: #c9bca5; }
   .neon-art { min-height: 250px; margin-top: 4px; }
   .neon-art img { width: min(100%, 220px) !important; max-height: 220px; }
   .hero-headline-rotator { min-height: 2.3em; }
+  .neon-copy h1 { font-size: clamp(40px, 11vw, 50px); }
   .neon-hero-actions .hero-action { width: 100%; }
 }
 
