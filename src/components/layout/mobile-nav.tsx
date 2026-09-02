@@ -37,3 +37,5 @@ export function MobileNav() {
 
   return <nav className="mobile-nav" aria-label="Mobile navigation"><ActiveMobileNav authenticated={authenticated} /></nav>;
 }
+
+// Keep mobile navigation isolated from server-only auth modules so Vercel can build the client bundle.
