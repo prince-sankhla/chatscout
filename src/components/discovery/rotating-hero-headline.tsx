@@ -5,9 +5,7 @@ import { useEffect, useState } from "react";
 const MESSAGES = [
   <>Find Your Next<br />Group Chat.</>,
   <>List Your Group<br />Get Paid.</>,
-  <>Discover Communities<br />Unlock Rewards.</>,
-  <>Grow Your Community<br />Get Discovered.</>,
-];
+] as const;
 
 export function RotatingHeroHeadline() {
   const [index, setIndex] = useState(0);
