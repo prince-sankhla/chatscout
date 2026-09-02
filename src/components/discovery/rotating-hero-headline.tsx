@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 const MESSAGES = [
   <>Find Your Next<br />Group Chat.</>,
-  <>List Your Community.<br />Get Discovered.</>,
-  <>Discover Communities.<br />Grow Yours.</>,
+  <>List Your Group.<br />Get Rewarded.</>,
+  <>Discover Communities.<br />Unlock Rewards.</>,
   <>Find Communities.<br />Unlock Opportunities.</>,
 ];
 
