@@ -2,9 +2,11 @@ import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
 import { categoryIcon, getActiveRootCategories } from "@/features/categories/data-access";
+import { DEMAND_OPPORTUNITIES } from "@/features/demand/opportunities";
 
 export default async function CategoriesPage() {
   const categories = await getActiveRootCategories();
+  const featuredDemand = DEMAND_OPPORTUNITIES.slice(0, 8);
 
   return (
     <PageShell>
@@ -25,6 +27,21 @@ export default async function CategoriesPage() {
             </Link>
           ))}
         </div>
+
+        <section className="discover-section">
+          <div className="section-heading">
+            <div><p className="eyebrow">SEARCH DEMAND</p><h2>Popular <span>community searches</span></h2></div>
+          </div>
+          <div className="platform-categories">
+            {featuredDemand.map((item) => (
+              <Link href={`/${item.routeCollection}/${item.slug}`} key={`${item.routeCollection}:${item.slug}`}>
+                <Icon name="arrow" />
+                <b>{item.title}</b>
+                <span>{item.keyword}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
     </PageShell>
   );
