@@ -10,7 +10,7 @@ const legacyCategoryRedirects = [
   ["college-university", "college-students"],
   ["bca-mca", "engineering-bca-it"],
   ["ai-ml", "ai"],
-  ["local-communities", "local-city-communities-canonical"],
+  ["local-communities", "local-city-communities"],
   ["networking", "random-friends-social-general"],
   ["jee-neet", "competitive-exams"],
   ["entrepreneurship", "startups"],
