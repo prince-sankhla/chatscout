@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@/components/analytics/google";
 import "./globals.css";
 import "./product-polish.css";
 import "./ui-stabilization.css";
 import "./launch-readiness.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chatscout-ten.vercel.app";
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://chatscout-ten.vercel.app"),
+  metadataBase: new URL(siteUrl),
   title: "ChatScout | Find your next group chat",
   description: "Discover active Instagram group chats in India by interest, language, region and community type.",
+  ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
   openGraph: {
     title: "ChatScout | Find your next group chat",
     description: "Discover active Instagram group chats in India by interest, language, region and community type.",
@@ -27,7 +32,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <GoogleAnalytics />
+      </body>
     </html>
   );
 }
