@@ -5,13 +5,10 @@ import { usePathname } from "next/navigation";
 import { ActiveMobileNav } from "./active-nav";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+const PRIVATE_NAV_PREFIXES = ["/dashboard", "/admin", "/brand"] as const;
+
 function hideMobileNav(pathname: string) {
-  return pathname === "/dashboard"
-    || pathname.startsWith("/dashboard/")
-    || pathname === "/admin"
-    || pathname.startsWith("/admin/")
-    || pathname === "/brand"
-    || pathname.startsWith("/brand/");
+  return PRIVATE_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 export function MobileNav() {
