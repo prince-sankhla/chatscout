@@ -1,0 +1,154 @@
+/* ChatScout responsive hardening: layout safety across phones, tablets and desktop widths. */
+
+@media (max-width: 1100px) {
+  .controller-content { padding-inline: 22px; }
+  .controller-topbar { padding-inline: 22px; }
+  .controller-stat-grid,
+  .controller-attention-grid,
+  .controller-workspace-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .controller-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .controller-filter-bar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .controller-filter-bar input { grid-column: 1 / -1; }
+  .controller-form-grid { grid-template-columns: 1fr 1.5fr; }
+  .controller-form-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .controller-inline-form { min-width: 0; grid-template-columns: 1fr 1.4fr 90px auto; }
+  .controller-category-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .controller-shell { display: block; }
+  .controller-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--controller-line); }
+  .controller-nav { height: auto; }
+  .controller-nav-group { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; scrollbar-width: none; }
+  .controller-nav-group::-webkit-scrollbar { display: none; }
+  .controller-nav-group > small { display: none; }
+  .controller-nav a, .controller-nav button { flex: 0 0 auto; width: auto; white-space: nowrap; }
+  .controller-topbar { flex-direction: column; padding: 20px 18px 16px; }
+  .controller-view-site { align-self: stretch; width: 100%; }
+  .controller-view-site > * { width: 100%; }
+  .controller-content { padding: 18px 18px 72px; }
+  .controller-hero-strip { align-items: flex-start; flex-direction: column; }
+  .controller-hero-actions { width: 100%; flex-wrap: wrap; }
+  .controller-hero-actions > * { flex: 1 1 150px; }
+  .controller-panel-head,
+  .ownerSnapshotHead,
+  .queueBanner,
+  .healthWorkspace { align-items: flex-start; flex-direction: column; }
+  .controller-attention-grid,
+  .controller-workspace-grid,
+  .ownerGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .controller-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .controller-form-grid { grid-template-columns: 1fr; }
+  .controller-form-actions { grid-column: auto; }
+  .controller-inline-form { grid-template-columns: 1fr; }
+  .controller-category-state { grid-template-columns: 1fr 1fr; }
+  .controller-category-actions { flex-wrap: wrap; }
+  .controller-settings-grid { grid-template-columns: 1fr 1fr; }
+  .controller-audit-row { grid-template-columns: 1fr; }
+  .controller-audit-links { justify-items: start; }
+  .admin-health-card { grid-template-columns: 1fr; }
+  .admin-health-card form { min-width: 0; }
+  .admin-health-card .admin-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .neon-header { padding-inline: 12px; }
+  .neon-actions { flex: 0 0 auto; }
+  .header-dashboard-link { max-width: 52px; }
+  .header-dashboard-copy { display: none; }
+
+  .brand .nav,
+  .shell .nav { scrollbar-width: none; }
+  .brand .nav::-webkit-scrollbar,
+  .shell .nav::-webkit-scrollbar { display: none; }
+
+  .formPanel { width: 100%; margin: 14px 0; padding: 16px; }
+  .formActions { align-items: stretch; flex-direction: column; }
+  .formActions > * { width: 100%; }
+
+  .reward-hero { grid-template-columns: 1fr; }
+  .reward-hero-copy, .reward-hero-panel { min-width: 0; }
+  .reward-hero h1 { overflow-wrap: anywhere; }
+  .reward-final-cta { align-items: stretch; }
+  .reward-final-actions { flex-direction: column; width: 100%; }
+  .reward-final-actions > * { width: 100%; }
+
+  .controller-attention-grid,
+  .controller-workspace-grid,
+  .ownerGrid,
+  .controller-settings-grid { grid-template-columns: 1fr; }
+  .controller-stat-grid { grid-template-columns: 1fr 1fr; }
+  .controller-filter-bar { grid-template-columns: 1fr; }
+  .controller-filter-bar input { grid-column: auto; }
+  .controller-section-title { align-items: flex-start; flex-direction: column; }
+  .controller-section-title > a { align-self: flex-start; }
+  .controller-category-state { grid-template-columns: 1fr; }
+  .controller-category-actions > * { width: 100%; }
+  .controller-mini-audit article { grid-template-columns: 1fr; }
+
+  .formGrid,
+  .owner-value-grid,
+  .monetization { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 560px) {
+  .neon-brand > img { width: 24px !important; height: 24px !important; }
+  .topbar { min-height: 60px; height: auto; }
+  .top-actions { gap: 7px; }
+  .icon-button { width: 36px; height: 36px; }
+  .header-dashboard-link { min-height: 36px; }
+
+  .community-grid { grid-template-columns: 1fr; }
+  .community-card { min-width: 0; }
+  .community-title-row { align-items: flex-start; }
+  .community-title-row h3 { font-size: 14px; }
+  .tag-row > * { max-width: 100%; }
+
+  .platform-categories { grid-template-columns: 1fr; }
+  .launch-category-grid,
+  .launch-platforms { grid-template-columns: 1fr; }
+  .launch-trust-strip { grid-template-columns: 1fr; }
+
+  .listing-form fieldset { padding: 14px; }
+  .listing-form legend { font-size: 14px; }
+  .community-auto-preview,
+  .image-preview-wrap { grid-template-columns: 1fr; }
+  .submission-image-preview { max-width: 160px; }
+  .image-actions { grid-template-columns: 1fr; }
+
+  .detail-copy { padding: 18px; }
+  .detail-art { min-height: 240px; }
+  .detail-copy h1 { font-size: clamp(28px, 9vw, 38px); }
+  .detail-metadata,
+  .detail-trust-line { flex-direction: column; align-items: stretch; }
+  .detail-metadata span,
+  .detail-trust-line span { width: 100%; }
+
+  .reward-hero { padding: 20px 16px; }
+  .reward-hero h1 { font-size: clamp(34px, 10vw, 48px); }
+  .reward-steps,
+  .reward-benefits { grid-template-columns: 1fr; }
+  .reward-dashboard-preview aside { grid-template-columns: 1fr 1fr; }
+
+  .controller-content { padding-inline: 12px; }
+  .controller-panel { padding: 14px; }
+  .controller-stat-grid { grid-template-columns: 1fr 1fr; }
+  .admin-health-card .admin-meta-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 380px) {
+  .neon-brand { max-width: 125px !important; }
+  .neon-brand > span b { font-size: 15px !important; }
+  .neon-actions { gap: 5px; }
+  .plain-icon { width: 34px !important; height: 34px !important; }
+  .controller-stat-grid { grid-template-columns: 1fr; }
+  .reward-hero-actions .primary-button,
+  .reward-secondary { min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-card:hover,
+  .why-feature-grid article:hover,
+  .workspaceCard:hover,
+  .launch-category-card:hover { transform: none !important; }
+}
