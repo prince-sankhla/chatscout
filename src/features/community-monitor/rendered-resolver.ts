@@ -47,7 +47,6 @@ function cleanName(value: string | null | undefined) {
     .replace(/^[>*`\-•·|:\s]+/, "")
     .replace(/\s*[-|•]\s*(?:instagram|group chat).*$/i, "")
     .trim();
-
   if (!name || name.length > 120) return null;
   if (/^(?:you(?:'|&apos;)?re|you are) invited to join a group chat on instagram$/i.test(name)) return null;
   if (/^(?:instagram|group chat|use the instagram app|join instagram|community name)$/i.test(name)) return null;
@@ -104,19 +103,16 @@ function extractStructuredProps(raw: string) {
 function extractName(html: string, memberCount: number | null, title: string | null, imageAlt: string | null) {
   const structured = extractStructuredProps(html);
   if (structured.title) return structured.title;
-
   const heading = [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((match) => cleanName(match[1]))
     .find((value): value is string => Boolean(value));
   if (heading) return heading;
-
   const text = plainText(html).replace(/\s+/g, " ");
   if (memberCount !== null) {
     const nearby = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
     const candidate = cleanName(nearby);
     if (candidate) return candidate;
   }
-
   const alt = cleanName(imageAlt);
   if (alt) return alt;
   return cleanName(title);
@@ -130,7 +126,6 @@ function isUsableImage(value: string | null) {
     if (url.hostname.toLowerCase() === INSTAGRAM_GENERIC_HOST) return false;
     if (/\/(?:rsrc\.php|shared\/static)\//i.test(url.pathname)) return false;
     if (/(?:instagram-logo|instagram-icon|meta-logo|app-icon|favicon|threads-logo|avatar-placeholder|sprite)/i.test(url.pathname)) return false;
-
     return /\.(?:jpe?g|png|webp|avif)(?:[?#].*)?$/i.test(value)
       || /(?:scontent|fbcdn|cdninstagram|lookaside\.fbsbx|fbsbx)/i.test(`${url.hostname}${url.pathname}`);
   } catch {
@@ -140,11 +135,7 @@ function isUsableImage(value: string | null) {
 
 function absolute(value: string | null | undefined, baseUrl: string) {
   if (!value) return null;
-  try {
-    return new URL(decode(value), baseUrl).toString();
-  } catch {
-    return null;
-  }
+  try { return new URL(decode(value), baseUrl).toString(); } catch { return null; }
 }
 
 function firstUsableImageFromHtml(html: string, baseUrl: string) {
@@ -176,38 +167,26 @@ async function request(url: string, headers: HeadersInit = {}) {
         ...headers,
       },
     });
-  } finally {
-    clearTimeout(timer);
-  }
+  } finally { clearTimeout(timer); }
 }
 
 async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(inviteUrl)}&meta=true&data.html.selector=body`;
   const response = await request(endpoint, { Accept: "application/json" });
   if (!response.ok) return EMPTY;
-
-  const payload = await response.json() as {
-    data?: {
-      html?: string;
-      title?: string;
-      url?: string;
-      image?: { url?: string | null } | null;
-    };
-  };
+  const payload = await response.json() as { data?: { html?: string; title?: string; url?: string; image?: { url?: string | null } | null } };
   const data = payload.data;
   if (!data) return EMPTY;
-
   const html = data.html ?? "";
   const structured = extractStructuredProps(html);
   const memberCount = structured.memberCount ?? extractMembers(html);
   const name = structured.title ?? extractName(html, memberCount, data.title ?? null, null);
-  const structuredImage = absolute(structured.imageUrl, data.url ?? inviteUrl);
-  const htmlImage = firstUsableImageFromHtml(html, data.url ?? inviteUrl);
-  const providerImage = absolute(data.image?.url, data.url ?? inviteUrl);
-  const imageUrl = [structuredImage, htmlImage, providerImage]
-    .find((value): value is string => isUsableImage(value)) ?? null;
-
-  return { name, memberCount, imageUrl, finalUrl: data.url ?? inviteUrl };
+  const base = data.url ?? inviteUrl;
+  const structuredImage = absolute(structured.imageUrl, base);
+  const htmlImage = firstUsableImageFromHtml(html, base);
+  const providerImage = absolute(data.image?.url, base);
+  const imageUrl = [structuredImage, htmlImage, providerImage].find((value): value is string => isUsableImage(value)) ?? null;
+  return { name, memberCount, imageUrl, finalUrl: base };
 }
 
 function instagramDirectUrl(inviteUrl: string) {
@@ -215,16 +194,11 @@ function instagramDirectUrl(inviteUrl: string) {
     const url = new URL(inviteUrl);
     const match = url.pathname.match(/^\/j\/([^/]+)\/?$/i);
     return match ? `https://www.instagram.com/j/${match[1]}/` : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 async function fetchInstagram(url: string): Promise<Preview> {
-  const response = await request(url, {
-    Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-    Referer: "https://www.instagram.com/",
-  });
+  const response = await request(url, { Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8", Referer: "https://www.instagram.com/" });
   if (!response.ok) return EMPTY;
   const html = await response.text();
   const structured = extractStructuredProps(html);
@@ -239,9 +213,11 @@ async function fetchInstagram(url: string): Promise<Preview> {
 export async function resolveRenderedCommunityPreview(inviteUrl: string): Promise<Preview> {
   try {
     const rendered = await fetchMicrolink(inviteUrl);
-    if (rendered.name && rendered.memberCount !== null && rendered.imageUrl) return rendered;
+    // Microlink is the generic image source for Discord/Telegram/WhatsApp/etc.
+    // Return any useful signal instead of requiring all fields to be present.
+    if (rendered.name || rendered.memberCount !== null || rendered.imageUrl) return rendered;
   } catch {
-    // Continue to the direct Instagram fallback.
+    // Continue to the Instagram-specific fallback.
   }
 
   const direct = instagramDirectUrl(inviteUrl);
@@ -260,9 +236,5 @@ export async function resolveRenderedCommunityPreview(inviteUrl: string): Promis
     }
   }
 
-  try {
-    return await fetchInstagram(inviteUrl);
-  } catch {
-    return EMPTY;
-  }
+  return EMPTY;
 }
