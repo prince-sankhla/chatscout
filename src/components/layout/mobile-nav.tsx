@@ -40,3 +40,5 @@ export function MobileNav() {
 
   return <nav className="mobile-nav" aria-label="Mobile navigation"><ActiveMobileNav authenticated={authenticated} /></nav>;
 }
+
+// Production deploy trigger: keep this component isolated from server-only auth dependencies.
