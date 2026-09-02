@@ -29,6 +29,10 @@ The current application includes the public discovery experience, search and fil
 - Responsive/mobile layout
 - Vercel deployment configuration
 
+### 🔎 Search Console verification
+
+The Google Search Console ownership verification file is served from `public/` so the production site can be verified using the HTML-file method.
+
 ## Tech Stack
 
 ### Frontend
