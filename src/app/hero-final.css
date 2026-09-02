@@ -1,9 +1,4 @@
-/*
- * HERO VISUAL SOURCE OF TRUTH
- * Restore the original flat desktop composition from the known-good UI.
- * Keep only the requested new rotating headline + Community Rewards CTA.
- */
-
+/* Hero artwork refinement: reference scale, neon orbital background, restrained floating motion. */
 .neon-layout {
   width: min(1240px, 100%) !important;
   margin: 0 auto !important;
@@ -13,21 +8,11 @@
   align-items: start !important;
   column-gap: 16px !important;
 }
-
 .neon-main { min-width: 0 !important; }
-
-.neon-rail {
-  margin-top: 18px !important;
-  min-width: 0 !important;
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: 16px !important;
-}
-
+.neon-rail { margin-top: 18px !important; min-width: 0 !important; display: grid !important; grid-template-columns: 1fr !important; gap: 16px !important; }
 .why-card { margin-top: 0 !important; }
-.newly-card, .categories-card { height: auto !important; }
+.newly-card,.categories-card { height: auto !important; }
 
-/* IMPORTANT: the original hero was not a bordered card. */
 .neon-hero {
   min-height: 540px !important;
   display: grid !important;
@@ -41,211 +26,131 @@
   background: transparent !important;
   box-shadow: none !important;
 }
+.neon-copy { width: 100% !important; max-width: 610px !important; min-width: 0 !important; position: relative !important; z-index: 4 !important; }
+.neon-copy h1 { width: 100% !important; max-width: 610px !important; margin: 0 !important; font-size: clamp(48px, 5.35vw, 76px) !important; line-height: .98 !important; letter-spacing: -.075em !important; }
+.hero-headline-rotator { position: relative !important; display: block !important; width: 100% !important; min-height: 148px !important; overflow: visible !important; }
+.hero-headline-line { position: absolute !important; inset: 0 auto auto 0 !important; display: block !important; width: 610px !important; max-width: 610px !important; white-space: nowrap !important; text-wrap: nowrap !important; overflow: visible !important; word-break: normal !important; overflow-wrap: normal !important; }
+.neon-copy > p:not(.eyebrow) { max-width: 560px !important; margin: 18px 0 21px !important; font-size: 15px !important; line-height: 1.62 !important; }
+.neon-copy .hero-search,.neon-copy > form.hero-search { width: min(100%,540px) !important; max-width: 540px !important; }
+.neon-hero-actions { display:flex !important; flex-direction:row !important; flex-wrap:wrap !important; align-items:center !important; gap:10px !important; width:100% !important; margin-top:13px !important; }
+.neon-hero-actions .hero-action { width:auto !important; min-width:0 !important; min-height:46px !important; padding:12px 16px !important; white-space:nowrap !important; }
+.neon-hero-actions .hero-action.reward-cta { flex:0 0 auto !important; }
+.neon-popular { margin-top:15px !important; }
 
-.neon-copy {
-  width: 100% !important;
-  max-width: 610px !important;
-  min-width: 0 !important;
-  position: relative !important;
-  z-index: 4 !important;
-}
-
-.neon-copy h1 {
-  width: 100% !important;
-  max-width: 610px !important;
-  margin: 0 !important;
-  font-size: clamp(48px, 5.35vw, 76px) !important;
-  line-height: .98 !important;
-  letter-spacing: -.075em !important;
-}
-
-.hero-headline-rotator {
-  position: relative !important;
-  display: block !important;
-  width: 100% !important;
-  min-height: 148px !important;
-  overflow: visible !important;
-}
-
-.hero-headline-line {
-  position: absolute !important;
-  inset: 0 auto auto 0 !important;
-  display: block !important;
-  width: 610px !important;
-  max-width: 610px !important;
-  white-space: nowrap !important;
-  text-wrap: nowrap !important;
-  overflow: visible !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-}
-
-.neon-copy > p:not(.eyebrow) {
-  max-width: 560px !important;
-  margin: 18px 0 21px !important;
-  font-size: 15px !important;
-  line-height: 1.62 !important;
-}
-
-.neon-copy .hero-search,
-.neon-copy > form.hero-search {
-  width: min(100%, 540px) !important;
-  max-width: 540px !important;
-}
-
-.neon-hero-actions {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 10px !important;
-  width: 100% !important;
-  margin-top: 13px !important;
-}
-
-.neon-hero-actions .hero-action {
-  width: auto !important;
-  min-width: 0 !important;
-  min-height: 46px !important;
-  padding: 12px 16px !important;
-  white-space: nowrap !important;
-}
-
-.neon-hero-actions .hero-action.reward-cta {
-  flex: 0 0 auto !important;
-}
-
-.neon-popular { margin-top: 15px !important; }
-
-/* Large original artwork plus the two decorative orbits seen in the good hero. */
 .neon-art {
   position: relative !important;
   display: grid !important;
   place-items: center !important;
   min-width: 0 !important;
-  min-height: 470px !important;
+  min-height: 450px !important;
   height: 100% !important;
   overflow: visible !important;
   opacity: 1 !important;
   z-index: 1 !important;
+  isolation: isolate !important;
 }
-
+.neon-art::before {
+  content:"" !important;
+  position:absolute !important;
+  width:430px !important;
+  height:430px !important;
+  left:50% !important;
+  top:48% !important;
+  transform:translate(-50%,-50%) !important;
+  border-radius:50% !important;
+  background:radial-gradient(circle at 48% 44%,rgba(112,69,232,.22),transparent 55%),radial-gradient(circle at 60% 62%,rgba(239,61,145,.12),transparent 44%) !important;
+  filter:blur(12px) !important;
+  pointer-events:none !important;
+  z-index:-1 !important;
+}
 .neon-art .orbit {
-  position: absolute !important;
-  display: block !important;
-  pointer-events: none !important;
-  border: 2px solid rgba(128, 49, 255, .95) !important;
-  border-radius: 50% !important;
-  box-shadow: 0 0 16px rgba(128, 49, 255, .55) !important;
-  z-index: 0 !important;
+  position:absolute !important;
+  display:block !important;
+  pointer-events:none !important;
+  border:2px solid rgba(128,49,255,.92) !important;
+  border-radius:50% !important;
+  box-shadow:0 0 18px rgba(128,49,255,.55),0 0 44px rgba(219,54,255,.13) !important;
+  z-index:0 !important;
 }
-
-/* Tall, standing oval behind the floating ChatScout mark. */
 .neon-art .orbit.one {
-  width: 325px !important;
-  height: 485px !important;
-  left: 50% !important;
-  top: 48% !important;
-  transform: translate(-50%, -50%) rotate(3deg) !important;
+  width:300px !important;
+  height:448px !important;
+  left:50% !important;
+  top:48% !important;
+  transform:translate(-50%,-50%) rotate(3deg) !important;
 }
-
-/* Wide, flat orbit below the logo. */
 .neon-art .orbit.two {
-  width: 405px !important;
-  height: 82px !important;
-  left: 50% !important;
-  bottom: 48px !important;
-  transform: translateX(-50%) !important;
+  width:372px !important;
+  height:72px !important;
+  left:50% !important;
+  bottom:48px !important;
+  transform:translateX(-50%) !important;
 }
-
 .neon-art img {
-  position: relative !important;
-  z-index: 2 !important;
-  display: block !important;
-  width: 520px !important;
-  max-width: 520px !important;
-  max-height: 520px !important;
-  height: auto !important;
-  aspect-ratio: 1 !important;
-  object-fit: contain !important;
-  transform: translate(12px, -2px) !important;
-  transform-origin: center center !important;
-  filter: drop-shadow(0 28px 44px rgba(36,18,88,.20)) !important;
-  animation: chatscoutHeroFloat 4.8s ease-in-out infinite !important;
-  will-change: transform !important;
+  position:relative !important;
+  z-index:2 !important;
+  display:block !important;
+  width:420px !important;
+  max-width:420px !important;
+  max-height:420px !important;
+  height:auto !important;
+  aspect-ratio:1 !important;
+  object-fit:contain !important;
+  transform:translate(10px,-2px) !important;
+  transform-origin:center center !important;
+  filter:drop-shadow(0 26px 40px rgba(36,18,88,.22)) !important;
+  animation:chatscoutHeroFloat 4.8s ease-in-out infinite !important;
+  will-change:transform !important;
 }
-
 @keyframes chatscoutHeroFloat {
-  0%, 100% { transform: translate(12px, -2px); }
-  50% { transform: translate(12px, -11px); }
+  0%,100% { transform:translate(10px,-2px); }
+  50% { transform:translate(10px,-10px); }
 }
+.neon-art .art-bubble { z-index:5 !important; }
 
-.neon-art .art-bubble { z-index: 5 !important; }
-
-@media (min-width: 1040px) {
-  .neon-rail { margin-top: 18px !important; }
+@media (max-width:1180px) and (min-width:1040px) {
+  .neon-layout { grid-template-columns:minmax(0,1fr) 290px !important; column-gap:14px !important; }
+  .neon-hero { grid-template-columns:minmax(0,1fr) minmax(350px,.95fr) !important; gap:2px !important; }
+  .neon-copy h1 { font-size:clamp(44px,5vw,66px) !important; }
+  .hero-headline-line { width:560px !important; max-width:560px !important; }
+  .neon-art { min-height:420px !important; }
+  .neon-art::before { width:380px !important; height:380px !important; }
+  .neon-art .orbit.one { width:270px !important; height:405px !important; }
+  .neon-art .orbit.two { width:335px !important; height:64px !important; bottom:40px !important; }
+  .neon-art img { width:390px !important; max-width:390px !important; max-height:390px !important; }
 }
-
-@media (max-width: 1180px) and (min-width: 1040px) {
-  .neon-layout {
-    grid-template-columns: minmax(0, 1fr) 290px !important;
-    column-gap: 14px !important;
-  }
-  .neon-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(350px, .95fr) !important;
-    gap: 2px !important;
-  }
-  .neon-copy h1 { font-size: clamp(44px, 5vw, 66px) !important; }
-  .hero-headline-line { width: 560px !important; max-width: 560px !important; }
-  .neon-art { min-height: 430px !important; }
-  .neon-art .orbit.one { width: 285px !important; height: 425px !important; }
-  .neon-art .orbit.two { width: 355px !important; height: 70px !important; bottom: 42px !important; }
-  .neon-art img { width: 480px !important; max-width: 480px !important; max-height: 480px !important; }
+@media (max-width:1039px) and (min-width:761px) {
+  .neon-layout { display:block !important; padding-top:22px !important; }
+  .neon-rail { margin-top:18px !important; }
+  .neon-hero { grid-template-columns:minmax(0,1fr) minmax(320px,.82fr) !important; }
+  .neon-copy h1 { font-size:clamp(44px,5.6vw,62px) !important; }
+  .hero-headline-line { width:520px !important; max-width:520px !important; }
+  .neon-art { min-height:390px !important; }
+  .neon-art::before { width:340px !important; height:340px !important; }
+  .neon-art .orbit.one { width:235px !important; height:350px !important; }
+  .neon-art .orbit.two { width:300px !important; height:58px !important; bottom:30px !important; }
+  .neon-art img { width:350px !important; max-width:350px !important; max-height:350px !important; transform:translate(4px,-2px) !important; }
 }
-
-@media (max-width: 1039px) and (min-width: 761px) {
-  .neon-layout { display: block !important; padding-top: 22px !important; }
-  .neon-rail { margin-top: 18px !important; }
-  .neon-hero { grid-template-columns: minmax(0,1fr) minmax(320px,.82fr) !important; }
-  .neon-copy h1 { font-size: clamp(44px,5.6vw,62px) !important; }
-  .hero-headline-line { width: 520px !important; max-width: 520px !important; }
-  .neon-art .orbit.one { width: 250px !important; height: 370px !important; }
-  .neon-art .orbit.two { width: 325px !important; height: 62px !important; bottom: 34px !important; }
-  .neon-art img { width: 440px !important; max-width: 440px !important; max-height: 440px !important; transform: translate(4px, -2px) !important; }
+@media (max-width:760px) {
+  .neon-layout { padding:18px 16px 64px !important; }
+  .neon-hero { grid-template-columns:1fr !important; min-height:0 !important; padding:34px 0 30px !important; gap:12px !important; }
+  .neon-copy h1 { font-size:clamp(42px,10.5vw,56px) !important; }
+  .hero-headline-rotator { min-height:2.6em !important; }
+  .hero-headline-line { width:100% !important; max-width:100% !important; white-space:normal !important; text-wrap:balance !important; }
+  .neon-art { min-height:300px !important; height:300px !important; }
+  .neon-art::before { width:285px !important; height:285px !important; }
+  .neon-art .orbit.one { width:205px !important; height:295px !important; }
+  .neon-art .orbit.two { width:268px !important; height:54px !important; bottom:27px !important; }
+  .neon-art img { width:285px !important; max-width:285px !important; max-height:285px !important; transform:none !important; }
 }
-
-@media (max-width: 760px) {
-  .neon-layout { padding: 18px 16px 64px !important; }
-  .neon-hero {
-    grid-template-columns: 1fr !important;
-    min-height: 0 !important;
-    padding: 34px 0 30px !important;
-    gap: 12px !important;
-  }
-  .neon-copy h1 { font-size: clamp(42px,10.5vw,56px) !important; }
-  .hero-headline-rotator { min-height: 2.6em !important; }
-  .hero-headline-line { width: 100% !important; max-width: 100% !important; white-space: normal !important; text-wrap: balance !important; }
-  .neon-art { min-height: 320px !important; height: 320px !important; }
-  .neon-art .orbit.one { width: 220px !important; height: 315px !important; }
-  .neon-art .orbit.two { width: 285px !important; height: 58px !important; bottom: 30px !important; }
-  .neon-art img { width: 380px !important; max-width: 380px !important; max-height: 380px !important; transform: none !important; }
-  @keyframes chatscoutHeroFloat {
-    0%, 100% { transform: translateY(-2px); }
-    50% { transform: translateY(-9px); }
-  }
+@media (max-width:520px) {
+  .neon-hero-actions .hero-action { width:100% !important; }
+  .neon-art { min-height:270px !important; height:270px !important; }
+  .neon-art::before { width:245px !important; height:245px !important; }
+  .neon-art .orbit.one { width:185px !important; height:265px !important; }
+  .neon-art .orbit.two { width:235px !important; height:50px !important; bottom:25px !important; }
+  .neon-art img { width:265px !important; max-width:265px !important; max-height:265px !important; }
 }
-
-@media (max-width: 520px) {
-  .neon-hero-actions .hero-action { width: 100% !important; }
-  .neon-art { min-height: 290px !important; height: 290px !important; }
-  .neon-art .orbit.one { width: 195px !important; height: 280px !important; }
-  .neon-art .orbit.two { width: 250px !important; height: 52px !important; bottom: 28px !important; }
-  .neon-art img { width: 320px !important; max-width: 320px !important; max-height: 320px !important; }
+@media (prefers-reduced-motion:reduce) {
+  .neon-art img,.hero-headline-line { animation:none !important; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .neon-art img,
-  .hero-headline-line { animation: none !important; }
-}
-
-/* deployment trigger: known-good hero */
