@@ -25,7 +25,6 @@ export async function getHomepageFeaturedCommunities(): Promise<{ data: Communit
       .select("*")
       .eq("status", "published")
       .eq("platform", platform)
-      .not("image_path", "is", null)
       .order("member_count", { ascending: false, nullsFirst: false })
       .order("verification_status", { ascending: true })
       .order("published_at", { ascending: false, nullsFirst: false })
