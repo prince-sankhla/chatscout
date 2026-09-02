@@ -357,6 +357,40 @@ textarea:focus-visible {
 .admin-health-card form { min-width: 150px; }
 .admin-health-card .admin-secondary { width: 100%; }
 
+/* Category hierarchy navigation */
+.detail-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+.detail-breadcrumbs::-webkit-scrollbar { display: none; }
+.detail-breadcrumbs a {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--purple);
+  text-decoration: none;
+}
+.detail-breadcrumbs span {
+  flex: 0 0 auto;
+}
+.detail-breadcrumbs span[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* Generic platform pages / empty & error surfaces */
 .platform-page,
 .neon-page,
@@ -415,6 +449,13 @@ textarea:focus-visible {
   .detail-metadata span,
   .detail-trust-line span { flex: 1 1 auto; }
   .detail-guidelines { grid-template-columns: 1fr; }
+  .detail-breadcrumbs {
+    gap: 5px;
+    margin-bottom: 8px;
+    padding-bottom: 2px;
+    font-size: 9px;
+  }
+  .detail-breadcrumbs a { min-height: 32px; }
   .listing-form fieldset { padding: 15px; border-radius: 14px; }
   .listing-form .form-row { grid-template-columns: 1fr; gap: 0; }
   .community-auto-preview,
