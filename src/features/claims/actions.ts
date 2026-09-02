@@ -3,54 +3,10 @@ import crypto from "node:crypto";
 import { redirect } from "next/navigation";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerAuthClient } from "@/lib/supabase/auth";
-
-function value(formData: FormData, key: string, max: number, required = false) { const raw = formData.get(key); const text = typeof raw === "string" ? raw.trim() : ""; if ((required && !text) || text.length > max) return null; return text || null; }
-
-export async function submitClaim(formData: FormData) {
-  const auth = await createServerAuthClient(); const { data: { user } } = await auth.auth.getUser(); if (!user) redirect("/submit/login?error=auth");
-  const communityId = value(formData, "communityId", 80, true), slug = value(formData, "slug", 160, true), code = value(formData, "verificationCode", 32, true); if (!communityId || !slug || !code) redirect("/");
-  const supabase = createAdminSupabaseClient() as any;
-  const { data: community } = await supabase.from("communities").select("id,claim_status,owner_user_id").eq("id", communityId).maybeSingle();
-  if (!community) redirect("/");
-  if (community.claim_status === "claimed" || community.owner_user_id) redirect(`/community/${encodeURIComponent(slug)}`);
-  const { data: existing } = await supabase.from("claim_requests").select("id").eq("community_id", communityId).eq("requesting_user_id", user.id).eq("status", "pending").maybeSingle();
-  if (existing) redirect(`/claim/${encodeURIComponent(slug)}?status=pending`);
-  const { error } = await supabase.from("claim_requests").insert({ community_id: communityId, requesting_user_id: user.id, verification_method: "bio_code", verification_code: code, status: "pending", expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() });
-  if (error) redirect(`/claim/${encodeURIComponent(slug)}?error=database`);
-  await supabase.from("communities").update({ claim_status: "pending_verification", verification_status: "pending", updated_at: new Date().toISOString() }).eq("id", communityId).eq("claim_status", "unclaimed");
-  await supabase.from("community_admin_profiles").upsert({ user_id: user.id }, { onConflict: "user_id" });
-  redirect(`/claim/${encodeURIComponent(slug)}?status=pending`);
-}
-
-async function requireAdmin() { const auth = await createServerAuthClient(); const { data: { user } } = await auth.auth.getUser(); if (!user) redirect("/admin/login"); const { isAuthorizedAdmin } = await import("@/lib/supabase/admin-authorization"); if (!isAuthorizedAdmin(user.id)) redirect("/admin/login"); return user; }
-
-export async function approveClaim(formData: FormData) {
-  const user = await requireAdmin(); const id = value(formData, "claimRequestId", 80, true); if (!id) return; const supabase = createAdminSupabaseClient() as any;
-  const { data: request, error } = await supabase.rpc("approve_claim_request", { p_claim_request_id: id }); if (error || !request) redirect("/admin/claims?resolved=error");
-  const r = request as { community_id: string; requesting_user_id: string };
-  await supabase.from("community_admins").upsert({ community_id: r.community_id, user_id: r.requesting_user_id, role: "owner" }, { onConflict: "community_id,user_id" });
-  await supabase.from("community_monetization").upsert({ community_id: r.community_id, status: "pending", ownership_verified: true, updated_at: new Date().toISOString() }, { onConflict: "community_id" });
-  await supabase.from("community_admin_notifications").insert({ user_id: r.requesting_user_id, community_id: r.community_id, title: "Community claim approved", message: "Your ownership claim was approved. You can now manage your community listing.", kind: "success" });
-  await supabase.from("admin_audit_log").insert({ action: "edited", admin_user_id: user.id, community_id: r.community_id, note: `Community ownership claim approved. claim_request_id=${id}` });
-  redirect("/admin/claims?resolved=approved");
-}
-
-export async function requestClaimInformation(formData: FormData) {
-  const user = await requireAdmin(); const id = value(formData, "claimRequestId", 80, true); const note = value(formData, "reviewNotes", 2000, true); if (!id || !note) return; const supabase = createAdminSupabaseClient() as any;
-  const { data: request, error } = await supabase.from("claim_requests").update({ status: "needs_information", review_notes: note, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq("id", id).eq("status", "pending").select("community_id,requesting_user_id").maybeSingle();
-  if (error || !request) redirect("/admin/claims?resolved=error");
-  await supabase.from("community_admin_notifications").insert({ user_id: request.requesting_user_id, community_id: request.community_id, title: "More information requested", message: note, kind: "warning" });
-  redirect("/admin/claims?resolved=information");
-}
-
-export async function rejectClaim(formData: FormData) {
-  const user = await requireAdmin(); const id = value(formData, "claimRequestId", 80, true); if (!id) return; const supabase = createAdminSupabaseClient() as any;
-  const { data: request, error } = await supabase.rpc("reject_claim_request", { p_claim_request_id: id }); if (error || !request) redirect("/admin/claims?resolved=error");
-  const r = request as { community_id: string; requesting_user_id: string };
-  await supabase.from("communities").update({ verification_status: "rejected" }).eq("id", r.community_id).eq("claim_status", "unclaimed");
-  await supabase.from("community_admin_notifications").insert({ user_id: r.requesting_user_id, community_id: r.community_id, title: "Community claim rejected", message: "Your ownership claim was not approved. Review the verification instructions and submit a new claim when ready.", kind: "warning" });
-  await supabase.from("admin_audit_log").insert({ action: "edited", admin_user_id: user.id, community_id: r.community_id, note: `Community ownership claim rejected. claim_request_id=${id}` });
-  redirect("/admin/claims?resolved=rejected");
-}
-
-export async function newClaimCode() { return `CS-${crypto.randomBytes(2).toString("hex").toUpperCase()}`; }
+function value(formData: FormData, key: string, max: number, required = false) { const raw=formData.get(key); const text=typeof raw==="string"?raw.trim():""; if((required&&!text)||text.length>max)return null; return text||null; }
+export async function submitClaim(formData:FormData){const auth=await createServerAuthClient();const{data:{user}}=await auth.auth.getUser();if(!user)redirect("/submit/login?error=auth");const communityId=value(formData,"communityId",80,true),slug=value(formData,"slug",160,true),code=value(formData,"verificationCode",32,true);if(!communityId||!slug||!code)redirect("/");const supabase=createAdminSupabaseClient() as any;const{data:community}=await supabase.from("communities").select("id,claim_status,owner_user_id").eq("id",communityId).maybeSingle();if(!community)redirect("/");if(community.claim_status==="claimed"||community.owner_user_id)redirect(`/community/${encodeURIComponent(slug)}`);const{data:existing}=await supabase.from("claim_requests").select("id").eq("community_id",communityId).eq("requesting_user_id",user.id).eq("status","pending").maybeSingle();if(existing)redirect(`/claim/${encodeURIComponent(slug)}?status=pending`);const{error}=await supabase.from("claim_requests").insert({community_id:communityId,requesting_user_id:user.id,verification_method:"bio_code",verification_code:code,status:"pending",expires_at:new Date(Date.now()+24*60*60*1000).toISOString()});if(error)redirect(`/claim/${encodeURIComponent(slug)}?error=database`);await supabase.from("communities").update({claim_status:"pending_verification",verification_status:"pending",updated_at:new Date().toISOString()}).eq("id",communityId).eq("claim_status","unclaimed");await supabase.from("community_admin_profiles").upsert({user_id:user.id},{onConflict:"user_id"});redirect(`/claim/${encodeURIComponent(slug)}?status=pending`);}
+async function requireAdmin(){const auth=await createServerAuthClient();const{data:{user}}=await auth.auth.getUser();if(!user)redirect("/admin/login");const{isAuthorizedAdmin}=await import("@/lib/supabase/admin-authorization");if(!isAuthorizedAdmin(user.id))redirect("/admin/login");return user;}
+export async function approveClaim(formData:FormData){const user=await requireAdmin();const id=value(formData,"claimRequestId",80,true);if(!id)return;const supabase=createAdminSupabaseClient() as any;const{data:request,error}=await supabase.rpc("approve_claim_request",{p_claim_request_id:id});if(error||!request)redirect("/admin/claims?resolved=error");const r=request as{community_id:string;requesting_user_id:string};await supabase.from("community_admins").upsert({community_id:r.community_id,user_id:r.requesting_user_id,role:"owner"},{onConflict:"community_id,user_id"});await supabase.rpc("calculate_community_monetization",{p_community_id:r.community_id});await supabase.from("community_admin_notifications").insert({user_id:r.requesting_user_id,community_id:r.community_id,title:"Community claim approved",message:"Your ownership claim was approved. You can now manage your community listing.",kind:"success"});await supabase.from("admin_audit_log").insert({action:"edited",admin_user_id:user.id,community_id:r.community_id,note:`Community ownership claim approved. claim_request_id=${id}`});redirect("/admin/claims?resolved=approved");}
+export async function requestClaimInformation(formData:FormData){const user=await requireAdmin();const id=value(formData,"claimRequestId",80,true);const note=value(formData,"reviewNotes",2000,true);if(!id||!note)return;const supabase=createAdminSupabaseClient() as any;const{data:request,error}=await supabase.from("claim_requests").update({status:"needs_information",review_notes:note,reviewed_by:user.id,reviewed_at:new Date().toISOString()}).eq("id",id).eq("status","pending").select("community_id,requesting_user_id").maybeSingle();if(error||!request)redirect("/admin/claims?resolved=error");await supabase.from("communities").update({claim_status:"unclaimed",verification_status:"needs_review",updated_at:new Date().toISOString()}).eq("id",request.community_id).eq("claim_status","pending_verification");await supabase.from("community_admin_notifications").insert({user_id:request.requesting_user_id,community_id:request.community_id,title:"More information requested",message:note,kind:"warning"});redirect("/admin/claims?resolved=information");}
+export async function rejectClaim(formData:FormData){const user=await requireAdmin();const id=value(formData,"claimRequestId",80,true);if(!id)return;const supabase=createAdminSupabaseClient() as any;const{data:request,error}=await supabase.rpc("reject_claim_request",{p_claim_request_id:id});if(error||!request)redirect("/admin/claims?resolved=error");const r=request as{community_id:string;requesting_user_id:string};await supabase.from("community_admin_notifications").insert({user_id:r.requesting_user_id,community_id:r.community_id,title:"Community claim rejected",message:"Your ownership claim was not approved. Review the verification instructions and submit a new claim when ready.",kind:"warning"});await supabase.from("admin_audit_log").insert({action:"edited",admin_user_id:user.id,community_id:r.community_id,note:`Community ownership claim rejected. claim_request_id=${id}`});redirect("/admin/claims?resolved=rejected");}
+export async function newClaimCode(){return `CS-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;}
