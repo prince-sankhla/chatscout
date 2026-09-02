@@ -1,0 +1,96 @@
+/* ChatScout hero micro-polish. Keep the known-good geometry; fix only alignment,
+   interaction contrast, and a few high-signal presentation details. */
+
+/* Center both orbit rings on the visible ChatScout artwork instead of the left
+   edge of the art lane. */
+.neon-art .orbit.one,
+.neon-art .orbit.two {
+  left: calc(50% + 92px) !important;
+}
+
+/* Keep the floating artwork centered with the shifted orbit system. */
+.neon-art img {
+  transform: translate(12px, -2px) !important;
+}
+
+@keyframes chatscoutHeroFloatPolished {
+  0%, 100% { transform: translate(12px, -2px); }
+  50% { transform: translate(12px, -9px); }
+}
+
+.neon-art img {
+  animation: chatscoutHeroFloatPolished 5s ease-in-out infinite !important;
+  filter: drop-shadow(0 24px 36px rgba(25, 12, 58, .22)) !important;
+}
+
+/* Professional, stable CTA states. Never switch to a light background with
+   white text on hover. */
+.neon-hero-actions .hero-action.primary,
+.neon-hero-actions .hero-action.primary:hover,
+.neon-hero-actions .hero-action.primary:focus-visible,
+.neon-hero-actions .hero-action.primary:active {
+  background: linear-gradient(100deg, #9a63ff 0%, #ff3b9d 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+  box-shadow: 0 10px 24px rgba(154, 99, 255, .22) !important;
+}
+
+.neon-hero-actions .hero-action.primary:hover {
+  transform: translateY(-2px) !important;
+  filter: brightness(1.04) !important;
+}
+
+.neon-hero-actions .hero-action:not(.primary),
+.neon-hero-actions .hero-action:not(.primary):hover,
+.neon-hero-actions .hero-action:not(.primary):focus-visible {
+  color: #f5f3ff !important;
+  -webkit-text-fill-color: #f5f3ff !important;
+}
+
+.neon-hero-actions .hero-action.reward-cta,
+.neon-hero-actions .hero-action.reward-cta:hover,
+.neon-hero-actions .hero-action.reward-cta:focus-visible {
+  color: #f2c66b !important;
+  -webkit-text-fill-color: #f2c66b !important;
+  background: rgba(231, 178, 91, .08) !important;
+  border-color: rgba(231, 178, 91, .48) !important;
+}
+
+.neon-hero-actions .hero-action * {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* Slightly cleaner hero controls without changing their footprint. */
+.neon-copy .hero-search {
+  box-shadow: 0 14px 34px rgba(0,0,0,.14) !important;
+}
+
+.neon-popular > a {
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease !important;
+}
+
+.neon-popular > a:hover {
+  transform: translateY(-2px) !important;
+}
+
+@media (max-width: 1180px) and (min-width: 1040px) {
+  .neon-art .orbit.one,
+  .neon-art .orbit.two { left: calc(50% + 70px) !important; }
+}
+
+@media (max-width: 1039px) and (min-width: 761px) {
+  .neon-art .orbit.one,
+  .neon-art .orbit.two { left: calc(50% + 48px) !important; }
+}
+
+@media (max-width: 760px) {
+  .neon-art .orbit.one,
+  .neon-art .orbit.two { left: 50% !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-art img { animation: none !important; }
+}
