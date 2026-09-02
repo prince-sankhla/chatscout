@@ -6,7 +6,7 @@ const MESSAGES = [
   <>Find Your Next<br />Group Chat.</>,
   <>List Your Group<br />Get Paid.</>,
   <>Discover Communities<br />Unlock Rewards.</>,
-  <>Find Communities<br />Unlock Opportunities.</>,
+  <>Grow Your Community<br />Get Discovered.</>,
 ];
 
 export function RotatingHeroHeadline() {
