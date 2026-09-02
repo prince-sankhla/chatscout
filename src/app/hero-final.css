@@ -117,7 +117,7 @@
 
 .neon-popular { margin-top: 15px !important; }
 
-/* Large original artwork. Do not shrink it to solve text layout. */
+/* Large original artwork plus the two decorative orbits seen in the good hero. */
 .neon-art {
   position: relative !important;
   display: grid !important;
@@ -130,6 +130,34 @@
   z-index: 1 !important;
 }
 
+.neon-art .orbit {
+  position: absolute !important;
+  display: block !important;
+  pointer-events: none !important;
+  border: 2px solid rgba(128, 49, 255, .95) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 16px rgba(128, 49, 255, .55) !important;
+  z-index: 0 !important;
+}
+
+/* Tall, standing oval behind the floating ChatScout mark. */
+.neon-art .orbit.one {
+  width: 325px !important;
+  height: 485px !important;
+  left: 50% !important;
+  top: 48% !important;
+  transform: translate(-50%, -50%) rotate(3deg) !important;
+}
+
+/* Wide, flat orbit below the logo. */
+.neon-art .orbit.two {
+  width: 405px !important;
+  height: 82px !important;
+  left: 50% !important;
+  bottom: 48px !important;
+  transform: translateX(-50%) !important;
+}
+
 .neon-art img {
   position: relative !important;
   z-index: 2 !important;
@@ -140,13 +168,19 @@
   height: auto !important;
   aspect-ratio: 1 !important;
   object-fit: contain !important;
-  transform: translate(12px, 0) !important;
+  transform: translate(12px, -2px) !important;
   transform-origin: center center !important;
   filter: drop-shadow(0 28px 44px rgba(36,18,88,.20)) !important;
+  animation: chatscoutHeroFloat 4.8s ease-in-out infinite !important;
+  will-change: transform !important;
+}
+
+@keyframes chatscoutHeroFloat {
+  0%, 100% { transform: translate(12px, -2px); }
+  50% { transform: translate(12px, -11px); }
 }
 
 .neon-art .art-bubble { z-index: 5 !important; }
-.neon-art .orbit { z-index: 0 !important; }
 
 @media (min-width: 1040px) {
   .neon-rail { margin-top: 18px !important; }
@@ -164,6 +198,8 @@
   .neon-copy h1 { font-size: clamp(44px, 5vw, 66px) !important; }
   .hero-headline-line { width: 560px !important; max-width: 560px !important; }
   .neon-art { min-height: 430px !important; }
+  .neon-art .orbit.one { width: 285px !important; height: 425px !important; }
+  .neon-art .orbit.two { width: 355px !important; height: 70px !important; bottom: 42px !important; }
   .neon-art img { width: 480px !important; max-width: 480px !important; max-height: 480px !important; }
 }
 
@@ -173,7 +209,9 @@
   .neon-hero { grid-template-columns: minmax(0,1fr) minmax(320px,.82fr) !important; }
   .neon-copy h1 { font-size: clamp(44px,5.6vw,62px) !important; }
   .hero-headline-line { width: 520px !important; max-width: 520px !important; }
-  .neon-art img { width: 440px !important; max-width: 440px !important; max-height: 440px !important; transform: none !important; }
+  .neon-art .orbit.one { width: 250px !important; height: 370px !important; }
+  .neon-art .orbit.two { width: 325px !important; height: 62px !important; bottom: 34px !important; }
+  .neon-art img { width: 440px !important; max-width: 440px !important; max-height: 440px !important; transform: translate(4px, -2px) !important; }
 }
 
 @media (max-width: 760px) {
@@ -188,15 +226,24 @@
   .hero-headline-rotator { min-height: 2.6em !important; }
   .hero-headline-line { width: 100% !important; max-width: 100% !important; white-space: normal !important; text-wrap: balance !important; }
   .neon-art { min-height: 320px !important; height: 320px !important; }
+  .neon-art .orbit.one { width: 220px !important; height: 315px !important; }
+  .neon-art .orbit.two { width: 285px !important; height: 58px !important; bottom: 30px !important; }
   .neon-art img { width: 380px !important; max-width: 380px !important; max-height: 380px !important; transform: none !important; }
+  @keyframes chatscoutHeroFloat {
+    0%, 100% { transform: translateY(-2px); }
+    50% { transform: translateY(-9px); }
+  }
 }
 
 @media (max-width: 520px) {
   .neon-hero-actions .hero-action { width: 100% !important; }
   .neon-art { min-height: 290px !important; height: 290px !important; }
+  .neon-art .orbit.one { width: 195px !important; height: 280px !important; }
+  .neon-art .orbit.two { width: 250px !important; height: 52px !important; bottom: 28px !important; }
   .neon-art img { width: 320px !important; max-width: 320px !important; max-height: 320px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .neon-art img,
   .hero-headline-line { animation: none !important; }
 }
