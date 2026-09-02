@@ -14,6 +14,13 @@ import { toCommunityPresentation } from "@/features/communities/presentation";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+const PLATFORM_META={
+  instagram:{label:"Instagram",icon:"instagram" as const},
+  whatsapp:{label:"WhatsApp",icon:"whatsapp" as const},
+  telegram:{label:"Telegram",icon:"telegram" as const},
+  discord:{label:"Discord",icon:"discord" as const},
+};
+
 function UnavailableCommunity() {
   return <PageShell><main className="page-content detail-page"><Link href="/" className="back-link">← Back to discovery</Link><p className="demo-notice">This community is temporarily unavailable. Please try again later.</p></main></PageShell>;
 }
@@ -44,9 +51,11 @@ export default async function CommunityPage({ params }: PageProps) {
   if (!communityRow) notFound();
   void recordCommunityView(communityRow.id);
   const community = await toCommunityPresentation(communityRow);
+  const platform = community.platform ?? "instagram";
+  const platformMeta = PLATFORM_META[platform];
   const [relatedResult, trendingResult] = await Promise.all([
     getPublishedRelatedCommunities(communityRow.id),
-    getTrendingPublishedCommunities({ platform: "instagram" }, 8),
+    getTrendingPublishedCommunities({}, 8),
   ]);
   const related = await Promise.all((relatedResult.data ?? []).map(toCommunityPresentation));
   const relatedIds = new Set((relatedResult.data ?? []).map((item) => item.id));
@@ -72,7 +81,7 @@ export default async function CommunityPage({ params }: PageProps) {
     <Link href="/" className="back-link">← Back to discovery</Link>
     <section className="detail-hero detail-hero-polished detail-hero-compact">
       <div className={`detail-art detail-art-polished art-${community.accent}`}>{community.imageUrl ? <img className="community-image" src={community.imageUrl} alt={`${community.name} community`} /> : <><span className="art-orbit" /><span className="art-copy">{community.initials.split("\n").map((line) => <span key={line}>{line}</span>)}</span></>}</div>
-      <div className="detail-copy detail-copy-polished"><div className="detail-label-row"><p className="eyebrow">INSTAGRAM COMMUNITY</p><span className="platform-badge"><Icon name="instagram" size={13} />Instagram</span></div><div className="detail-title-line"><h1>{community.name}</h1>{community.verificationStatus === "verified" && <span className="detail-verified"><Icon name="check" size={13} />Verified</span>}</div><div className="tag-row">{community.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><p className="detail-description">{community.description}</p>{metadata.length > 0 && <div className="detail-metadata">{metadata.map((item) => <span key={item.label}><Icon name={item.icon} size={16} />{item.label}</span>)}</div>}<div className="detail-trust-line"><span>{healthLabel}</span><span>{listingAgeLabel}</span>{communityRow.last_verified_at && <span>Verified {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(communityRow.last_verified_at))}</span>}</div>{guidelines.length > 0 && <dl className="detail-guidelines">{guidelines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{communityRow.join_enabled !== false ? <Link className="join-button detail-join" href={`/join/${community.slug}`}><Icon name="instagram" size={18} />Join on Instagram <Icon name="arrow" size={16} /></Link> : <span className="join-button detail-join join-disabled" aria-disabled="true"><Icon name="instagram" size={18} />Join temporarily unavailable</span>}<CommunityDetailActions slug={community.slug} name={community.name} /></div>
+      <div className="detail-copy detail-copy-polished"><div className="detail-label-row"><p className="eyebrow">{platformMeta.label.toUpperCase()} COMMUNITY</p><span className={`platform-badge platform-badge-${platform}`}><Icon name={platformMeta.icon} size={13} />{platformMeta.label}</span></div><div className="detail-title-line"><h1>{community.name}</h1>{community.verificationStatus === "verified" && <span className="detail-verified"><Icon name="check" size={13} />Verified</span>}</div><div className="tag-row">{community.tags.map((tag) => <span key={tag}>{tag}</span>)}</div><p className="detail-description">{community.description}</p>{metadata.length > 0 && <div className="detail-metadata">{metadata.map((item) => <span key={item.label}><Icon name={item.icon} size={16} />{item.label}</span>)}</div>}<div className="detail-trust-line"><span>{healthLabel}</span><span>{listingAgeLabel}</span>{communityRow.last_verified_at && <span>Verified {new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(communityRow.last_verified_at))}</span>}</div>{guidelines.length > 0 && <dl className="detail-guidelines">{guidelines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{communityRow.join_enabled !== false ? <Link className={`join-button detail-join join-button-${platform}`} href={`/join/${community.slug}`}><Icon name={platformMeta.icon} size={18} />Join on {platformMeta.label} <Icon name="arrow" size={16} /></Link> : <span className="join-button detail-join join-disabled" aria-disabled="true"><Icon name={platformMeta.icon} size={18} />Join temporarily unavailable</span>}<CommunityDetailActions slug={community.slug} name={community.name} /></div>
     </section>
     <CommunityDetailTrust memberCount={communityRow.member_count ?? null} language={communityRow.language ?? null} region={communityRow.region ?? null} ageRestriction={communityRow.age_restriction ?? null} eligibility={communityRow.eligibility ?? null} rules={communityRow.community_rules ?? null} restrictions={communityRow.restrictions ?? null} verificationStatus={String(communityRow.verification_status ?? "unverified")} healthLabel={healthLabel} lastVerifiedAt={communityRow.last_verified_at ?? null} />
     {related.length > 0 && <Reveal><section className="discover-section detail-related"><div className="section-heading"><div><p className="eyebrow">DISCOVER MORE</p><h2>Related <span>Communities</span></h2></div><Link href="/categories">Browse categories <Icon name="arrow" size={14} /></Link></div><CommunityGrid communities={related} compact /></section></Reveal>}
