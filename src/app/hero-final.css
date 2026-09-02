@@ -1,67 +1,50 @@
 /*
- * Hero-only source of truth.
- * Restores the pre-refinement desktop composition and keeps:
- * - rotating headline
- * - Community Rewards CTA
- * - existing right-side Why ChatScout rail
+ * HERO VISUAL SOURCE OF TRUTH
+ * Restore the original flat desktop composition from the known-good UI.
+ * Keep only the requested new rotating headline + Community Rewards CTA.
  */
 
-/* Page shell: match the old desktop geometry — wide content area with a stable 300px rail. */
 .neon-layout {
   width: min(1240px, 100%) !important;
   margin: 0 auto !important;
-  padding: 18px 16px 64px !important;
+  padding: 0 16px 64px !important;
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) 300px !important;
   align-items: start !important;
   column-gap: 16px !important;
 }
 
-.neon-main {
-  min-width: 0 !important;
-}
+.neon-main { min-width: 0 !important; }
 
 .neon-rail {
-  margin-top: 0 !important;
+  margin-top: 18px !important;
   min-width: 0 !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
   gap: 16px !important;
 }
 
-.why-card {
-  margin-top: 0 !important;
-  grid-row: auto !important;
-}
+.why-card { margin-top: 0 !important; }
+.newly-card, .categories-card { height: auto !important; }
 
-.newly-card,
-.categories-card {
-  height: auto !important;
-}
-
-/* Main hero: the key old composition. */
+/* IMPORTANT: the original hero was not a bordered card. */
 .neon-hero {
-  min-height: 560px !important;
+  min-height: 540px !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(390px, .9fr) !important;
+  grid-template-columns: minmax(0, 1.02fr) minmax(390px, .98fr) !important;
   align-items: center !important;
-  gap: 4px !important;
-  padding: 42px 42px 38px !important;
-  overflow: hidden !important;
-  border: 1px solid var(--line) !important;
-  border-radius: 30px !important;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--surface) 96%, var(--soft)), var(--surface)) !important;
-  box-shadow: 0 24px 70px rgba(25, 17, 55, .07) !important;
+  gap: 6px !important;
+  padding: 44px 0 34px !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-html[data-theme="dark"] .neon-hero {
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .22) !important;
-}
-
-/* Give the copy the same usable width as the original while preventing the art from invading it. */
 .neon-copy {
   width: 100% !important;
-  max-width: 700px !important;
+  max-width: 610px !important;
   min-width: 0 !important;
   position: relative !important;
   z-index: 4 !important;
@@ -132,17 +115,15 @@ html[data-theme="dark"] .neon-hero {
   flex: 0 0 auto !important;
 }
 
-.neon-popular {
-  margin-top: 15px !important;
-}
+.neon-popular { margin-top: 15px !important; }
 
-/* Restore the large, contained artwork footprint from the good version. */
+/* Large original artwork. Do not shrink it to solve text layout. */
 .neon-art {
   position: relative !important;
   display: grid !important;
   place-items: center !important;
   min-width: 0 !important;
-  min-height: 430px !important;
+  min-height: 470px !important;
   height: 100% !important;
   overflow: visible !important;
   opacity: 1 !important;
@@ -154,27 +135,21 @@ html[data-theme="dark"] .neon-hero {
   z-index: 2 !important;
   display: block !important;
   width: 520px !important;
-  max-width: none !important;
+  max-width: 520px !important;
   max-height: 520px !important;
   height: auto !important;
   aspect-ratio: 1 !important;
   object-fit: contain !important;
-  transform: translate(18px, -2px) !important;
+  transform: translate(12px, 0) !important;
   transform-origin: center center !important;
-  filter: drop-shadow(0 28px 44px rgba(36, 18, 88, .20)) !important;
+  filter: drop-shadow(0 28px 44px rgba(36,18,88,.20)) !important;
 }
 
-.neon-art .art-bubble {
-  z-index: 5 !important;
-}
+.neon-art .art-bubble { z-index: 5 !important; }
+.neon-art .orbit { z-index: 0 !important; }
 
-.neon-art .orbit {
-  z-index: 0 !important;
-}
-
-/* The right rail must stay top-aligned with the hero. */
-.neon-main + .neon-rail {
-  align-self: start !important;
+@media (min-width: 1040px) {
+  .neon-rail { margin-top: 18px !important; }
 }
 
 @media (max-width: 1180px) and (min-width: 1040px) {
@@ -182,127 +157,46 @@ html[data-theme="dark"] .neon-hero {
     grid-template-columns: minmax(0, 1fr) 290px !important;
     column-gap: 14px !important;
   }
-
   .neon-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(350px, .9fr) !important;
+    grid-template-columns: minmax(0, 1fr) minmax(350px, .95fr) !important;
     gap: 2px !important;
-    padding-inline: 34px !important;
   }
-
-  .neon-copy h1 {
-    font-size: clamp(44px, 5vw, 66px) !important;
-  }
-
-  .hero-headline-line {
-    width: 560px !important;
-    max-width: 560px !important;
-  }
-
-  .neon-art {
-    min-height: 410px !important;
-  }
-
-  .neon-art img {
-    width: 480px !important;
-    max-width: none !important;
-    max-height: 480px !important;
-    transform: translate(8px, -2px) !important;
-  }
+  .neon-copy h1 { font-size: clamp(44px, 5vw, 66px) !important; }
+  .hero-headline-line { width: 560px !important; max-width: 560px !important; }
+  .neon-art { min-height: 430px !important; }
+  .neon-art img { width: 480px !important; max-width: 480px !important; max-height: 480px !important; }
 }
 
 @media (max-width: 1039px) and (min-width: 761px) {
-  .neon-layout {
-    display: block !important;
-    padding-top: 22px !important;
-  }
-
-  .neon-rail {
-    margin-top: 18px !important;
-    display: grid !important;
-    gap: 16px !important;
-  }
-
-  .neon-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, .82fr) !important;
-  }
-
-  .neon-copy h1 {
-    font-size: clamp(44px, 5.6vw, 62px) !important;
-  }
-
-  .hero-headline-line {
-    width: 520px !important;
-    max-width: 520px !important;
-  }
-
-  .neon-art img {
-    width: 440px !important;
-    max-width: none !important;
-    max-height: 440px !important;
-    transform: translate(4px, -2px) !important;
-  }
+  .neon-layout { display: block !important; padding-top: 22px !important; }
+  .neon-rail { margin-top: 18px !important; }
+  .neon-hero { grid-template-columns: minmax(0,1fr) minmax(320px,.82fr) !important; }
+  .neon-copy h1 { font-size: clamp(44px,5.6vw,62px) !important; }
+  .hero-headline-line { width: 520px !important; max-width: 520px !important; }
+  .neon-art img { width: 440px !important; max-width: 440px !important; max-height: 440px !important; transform: none !important; }
 }
 
 @media (max-width: 760px) {
-  .neon-layout {
-    padding: 18px 16px 64px !important;
-  }
-
+  .neon-layout { padding: 18px 16px 64px !important; }
   .neon-hero {
     grid-template-columns: 1fr !important;
     min-height: 0 !important;
-    padding: 34px 24px 30px !important;
+    padding: 34px 0 30px !important;
     gap: 12px !important;
   }
-
-  .neon-copy h1 {
-    font-size: clamp(42px, 10.5vw, 56px) !important;
-  }
-
-  .hero-headline-rotator {
-    min-height: 2.6em !important;
-  }
-
-  .hero-headline-line {
-    width: 100% !important;
-    max-width: 100% !important;
-    white-space: normal !important;
-    text-wrap: balance !important;
-  }
-
-  .neon-art {
-    min-height: 320px !important;
-    height: 320px !important;
-    margin-top: 6px !important;
-  }
-
-  .neon-art img {
-    width: 380px !important;
-    max-width: 380px !important;
-    max-height: 380px !important;
-    transform: none !important;
-  }
+  .neon-copy h1 { font-size: clamp(42px,10.5vw,56px) !important; }
+  .hero-headline-rotator { min-height: 2.6em !important; }
+  .hero-headline-line { width: 100% !important; max-width: 100% !important; white-space: normal !important; text-wrap: balance !important; }
+  .neon-art { min-height: 320px !important; height: 320px !important; }
+  .neon-art img { width: 380px !important; max-width: 380px !important; max-height: 380px !important; transform: none !important; }
 }
 
 @media (max-width: 520px) {
-  .neon-hero-actions .hero-action {
-    width: 100% !important;
-  }
-
-  .neon-art {
-    min-height: 290px !important;
-    height: 290px !important;
-  }
-
-  .neon-art img {
-    width: 320px !important;
-    max-width: 320px !important;
-    max-height: 320px !important;
-  }
+  .neon-hero-actions .hero-action { width: 100% !important; }
+  .neon-art { min-height: 290px !important; height: 290px !important; }
+  .neon-art img { width: 320px !important; max-width: 320px !important; max-height: 320px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-headline-line {
-    animation: none !important;
-  }
+  .hero-headline-line { animation: none !important; }
 }
