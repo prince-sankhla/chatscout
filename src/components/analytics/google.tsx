@@ -1,6 +1,8 @@
 "use client";
 
 import Script from "next/script";
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
 
@@ -33,9 +35,6 @@ export function GoogleAnalytics() {
     </>
   );
 }
-
-import { useEffect } from "react";
-import { usePathname } from "next/navigation";
 
 function GoogleAnalyticsPageView() {
   const pathname = usePathname();
