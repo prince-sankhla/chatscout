@@ -6,7 +6,8 @@ import "./ui-stabilization.css";
 import "./launch-readiness.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chatscout-ten.vercel.app";
-const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const rawGoogleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
+const googleSiteVerification = rawGoogleSiteVerification?.match(/content=[\"']([^\"']+)[\"']/i)?.[1] ?? rawGoogleSiteVerification;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
