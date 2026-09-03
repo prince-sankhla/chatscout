@@ -26,31 +26,35 @@ const getCommunityCategories=unstable_cache(
   {revalidate:300},
 );
 
-async function resolveFallbackImage(inviteUrl:string){
+async function resolveFallbackPreview(inviteUrl:string){
   const cached=unstable_cache(
     async()=>resolveRenderedCommunityPreview(inviteUrl),
-    ["community-image-fallback",inviteUrl],
+    ["community-preview-fallback",inviteUrl],
     {revalidate:3600},
   );
-  const preview=await cached();
-  return preview.imageUrl;
+  return cached();
 }
 
-function buildPresentation(community:CommunityRow,categoryNames:string[],imageUrl:string|null):Community{
+function buildPresentation(community:CommunityRow,categoryNames:string[],imageUrl:string|null,memberCountOverride:number|null=null):Community{
   const platform=community.platform??"instagram";
   const platformLabel=platform[0].toUpperCase()+platform.slice(1);
   const primaryCategory=categoryNames[0]??"Community";
   const tags=[...categoryNames,platformLabel,community.language,community.region].filter((tag):tag is string=>Boolean(tag));
-  return{slug:community.slug,name:community.name,category:primaryCategory,location:community.region??"Location unavailable",membersLabel:membersLabel(community.member_count),description:community.description,accent:accentForSlug(community.slug),initials:initialsForName(community.name),tags,isDemo:false,imageUrl,listingAgeLabel:listingAgeLabel(community.created_at),healthLabel:healthLabel(community),verificationStatus:community.verification_status,platform};
+  return{slug:community.slug,name:community.name,category:primaryCategory,location:community.region??"Location unavailable",membersLabel:membersLabel(community.member_count??memberCountOverride),description:community.description,accent:accentForSlug(community.slug),initials:initialsForName(community.name),tags,isDemo:false,imageUrl,listingAgeLabel:listingAgeLabel(community.created_at),healthLabel:healthLabel(community),verificationStatus:community.verification_status,platform};
 }
 
 export async function toCommunityPresentation(community:CommunityRow):Promise<Community>{
   const categoryNames=await getCommunityCategories(community.id);
   let imageUrl=await getPublishedCommunityImageUrl(community.image_path);
-  if(!imageUrl&&community.invite_url){
-    try{imageUrl=await resolveFallbackImage(community.invite_url);}catch{imageUrl=null;}
+  let memberCountOverride:number|null=null;
+  if(!imageUrl||community.member_count===null){
+    try{
+      const preview=await resolveFallbackPreview(community.invite_url);
+      imageUrl=imageUrl??preview.imageUrl;
+      memberCountOverride=preview.memberCount;
+    }catch{memberCountOverride=null;}
   }
-  return buildPresentation(community,categoryNames,imageUrl);
+  return buildPresentation(community,categoryNames,imageUrl,memberCountOverride);
 }
 
 /** Bulk presentation path for discovery grids. Avoids per-card category/storage requests. */
@@ -84,10 +88,15 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
 
   const presentations=await Promise.all(communities.map(async(community)=>{
     let imageUrl=imageMap.get(community.image_path??"")??null;
-    if(!imageUrl&&community.invite_url){
-      try{imageUrl=await resolveFallbackImage(community.invite_url);}catch{imageUrl=null;}
+    let memberCountOverride:number|null=null;
+    if(!imageUrl||community.member_count===null){
+      try{
+        const preview=await resolveFallbackPreview(community.invite_url);
+        imageUrl=imageUrl??preview.imageUrl;
+        memberCountOverride=preview.memberCount;
+      }catch{memberCountOverride=null;}
     }
-    return buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageUrl);
+    return buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageUrl,memberCountOverride);
   }));
 
   return presentations;
