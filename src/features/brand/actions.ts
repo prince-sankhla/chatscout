@@ -40,3 +40,26 @@ export async function reviewApplication(form:FormData){const user=await currentU
 export async function controllerCampaignAction(form:FormData){const adminUser=await requireAdminUser();const id=text(form,'campaignId'),status=text(form,'status');if(!['active','paused','completed','cancelled'].includes(status))throw new Error('Invalid campaign action.');const db=createAdminSupabaseClient() as any;const {data:c}=await db.from('campaigns').select('status').eq('id',id).maybeSingle();if(!c)throw new Error('Campaign not found.');if(status==='active'){const {count}=await db.from('campaign_deliverables').select('id',{count:'exact',head:true}).eq('campaign_id',id).eq('required',true);if(!count)throw new Error('Campaign needs at least one required deliverable before activation.');}const allowed=(c.status==='pending_review'&&['active','cancelled'].includes(status))||(c.status==='active'&&['paused','completed','cancelled'].includes(status))||(c.status==='paused'&&['active','completed','cancelled'].includes(status));if(!allowed)throw new Error('Invalid controller state transition.');const {error}=await db.from('campaigns').update({status,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);await db.from('campaign_execution_audit').insert({campaign_id:id,actor_user_id:adminUser.id,actor_type:'controller',action:'campaign_status_changed',details:{status}});revalidatePath('/admin/campaigns');revalidatePath('/brand/campaigns');}
 
 export async function reviewCampaignSubmission(form:FormData){const user=await currentUser();if(!user)redirect('/brand/login');const status=text(form,'status'),reason=text(form,'reason');if(!['approved','revision_required','rejected'].includes(status))throw new Error('Invalid review state.');const db=createAdminSupabaseClient() as any;const {error}=await db.rpc('review_campaign_submission',{p_submission_id:text(form,'submissionId'),p_status:status,p_reason:reason||null});if(error)throw new Error(error.message);revalidatePath('/brand/campaigns');revalidatePath('/brand/applications');revalidatePath('/dashboard/rewards');revalidatePath('/dashboard/notifications');void user;}
+
+export async function refreshCampaignMatches(form:FormData){
+ const user=await currentUser();if(!user)redirect('/brand/login');
+ const campaignId=text(form,'campaignId');if(!campaignId)throw new Error('Campaign id is required.');
+ const db=createAdminSupabaseClient() as any;const {error}=await db.rpc('refresh_campaign_matches',{p_campaign_id:campaignId,p_limit:100});if(error)throw new Error(error.message);
+ revalidatePath(`/brand/campaigns/${encodeURIComponent(campaignId)}/matches`);redirect(`/brand/campaigns/${encodeURIComponent(campaignId)}/matches`);
+}
+
+export async function inviteSelectedCampaignCommunities(form:FormData){
+ const user=await currentUser();if(!user)redirect('/brand/login');
+ const campaignId=text(form,'campaignId');const ids=form.getAll('communityId').map(v=>String(v).trim()).filter(Boolean);
+ if(!campaignId||!ids.length)throw new Error('Select at least one community.');
+ const db=createAdminSupabaseClient() as any;const {error}=await db.rpc('invite_campaign_communities',{p_campaign_id:campaignId,p_community_ids:ids});if(error)throw new Error(error.message);
+ revalidatePath(`/brand/campaigns/${encodeURIComponent(campaignId)}/matches`);redirect(`/brand/campaigns/${encodeURIComponent(campaignId)}/matches`);
+}
+
+export async function respondToCampaignInvitation(form:FormData){
+ const user=await currentUser();if(!user)redirect('/submit/login?error=auth');
+ const campaignId=text(form,'campaignId');const communityId=text(form,'communityId');const response=text(form,'response');
+ if(!campaignId||!communityId||!['accepted','declined'].includes(response))throw new Error('Invalid campaign invitation response.');
+ const db=createAdminSupabaseClient() as any;const {error}=await db.rpc('respond_to_campaign_invitation',{p_campaign_id:campaignId,p_community_id:communityId,p_response:response});if(error)throw new Error(error.message);
+ revalidatePath('/dashboard/rewards');revalidatePath('/dashboard/notifications');
+}
