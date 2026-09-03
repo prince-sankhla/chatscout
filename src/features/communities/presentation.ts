@@ -62,7 +62,9 @@ function buildPresentation(community:CommunityRow,categoryNames:string[],imageUr
 
 export async function toCommunityPresentation(community:CommunityRow):Promise<Community>{
   const categoryNames=await getCommunityCategories(community.id);
+  const externalImageUrl=(community as CommunityRow & {external_image_url?:string|null}).external_image_url ?? null;
   let imageUrl=await getPublishedCommunityImageUrl(community.image_path);
+  imageUrl=imageUrl??externalImageUrl;
   let memberCountOverride:number|null=null;
   if(!imageUrl||community.member_count===null){
     try{
@@ -104,7 +106,8 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
   }
 
   const presentations=await Promise.all(communities.map(async(community)=>{
-    let imageUrl=imageMap.get(community.image_path??"")??null;
+    const externalImageUrl=(community as CommunityRow & {external_image_url?:string|null}).external_image_url ?? null;
+    let imageUrl=imageMap.get(community.image_path??"")??externalImageUrl;
     let memberCountOverride:number|null=null;
     if(!imageUrl||community.member_count===null){
       try{
