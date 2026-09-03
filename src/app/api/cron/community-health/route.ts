@@ -24,19 +24,23 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = createAdminSupabaseClient();
   const { data: communities, error } = await admin.from("communities")
-    .select("id,slug,name,invite_url,platform,owner_user_id,member_count,health_status,health_failure_count,last_remote_name,last_remote_member_count,external_image_url,last_remote_image_checked_at")
+    .select("id,slug,name,invite_url,platform,owner_user_id,member_count,health_status,health_failure_count,last_remote_name,last_remote_member_count,external_image_url,last_remote_image_checked_at,tags")
     .eq("status", "published").eq("auto_monitor_enabled", true)
     .order("health_last_checked_at", { ascending: true, nullsFirst: true }).limit(BATCH_LIMIT);
   if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
 
-  // Phase 1 WhatsApp inventory is prioritized within the queue.
-  const ordered = [...(communities ?? [])].sort((a, b) => Number((b.platform === "whatsapp") && Array.isArray((b as any).tags) && (b as any).tags.includes("phase1")) - Number((a.platform === "whatsapp") && Array.isArray((a as any).tags) && (a as any).tags.includes("phase1")));
-  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, images: 0, memberCounts: 0 };
+  const ordered = [...(communities ?? [])].sort((a, b) => {
+    const aPhase1 = a.platform === "whatsapp" && Array.isArray(a.tags) && a.tags.includes("phase1");
+    const bPhase1 = b.platform === "whatsapp" && Array.isArray(b.tags) && b.tags.includes("phase1");
+    return Number(bPhase1) - Number(aPhase1);
+  });
+  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, images: 0, memberCounts: 0, phase1Checked: 0 };
 
   for (let i = 0; i < ordered.length; i += CONCURRENCY) {
     const checked = await Promise.all(ordered.slice(i, i + CONCURRENCY).map(checkOne));
     for (const { community, preview, error: previewError } of checked) {
       results.checked += 1;
+      if (community.platform === "whatsapp" && Array.isArray(community.tags) && community.tags.includes("phase1")) results.phase1Checked += 1;
       const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
       if (!hasSignal) {
         results.failed += 1;
