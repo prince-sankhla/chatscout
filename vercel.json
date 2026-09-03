@@ -1,4 +1,7 @@
 {
+  "env": {
+    "VYNLO_PLATFORM_FEE_BPS": "500"
+  },
   "crons": [
     { "path": "/api/cron/community-health", "schedule": "30 0 * * *" },
     { "path": "/api/cron/audience-packs", "schedule": "0 1 * * *" }
