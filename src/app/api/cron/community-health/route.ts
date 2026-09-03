@@ -8,54 +8,62 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FAILURE_THRESHOLD = 3;
-const BATCH_LIMIT = 500;
+const BATCH_LIMIT = 100;
+const CONCURRENCY = 8;
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
 type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
-type HealthChange = { nameChanged: boolean; memberCountChanged: boolean; becameHealthy: boolean };
 
-function authorized(request: Request) { const secret = process.env.CRON_SECRET?.trim(); if (!secret) return false; return request.headers.get("authorization") === `Bearer ${secret}`; }
+function authorized(request: Request) { const secret = process.env.CRON_SECRET?.trim(); return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`); }
 function appUrl() { return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? null; }
-async function ownerEmail(userId: string | null) { if (!userId) return null; const admin=createAdminSupabaseClient(); const {data}=await admin.auth.admin.getUserById(userId); return data.user?.email??null; }
-async function audit(communityId:string,action:HealthAuditAction,note:string){const adminUserId=process.env.ADMIN_USER_ID?.trim();if(!adminUserId||!/^\S{36}$/i.test(adminUserId))return;await createAdminSupabaseClient().from("admin_audit_log").insert({action,admin_user_id:adminUserId,community_id:communityId,note});}
-async function notifyHealthChange(community:{id:string;slug:string;name:string;owner_user_id:string|null},change:HealthChange,preview:{name:string|null;memberCount:number|null}){const pieces:string[]=[];if(change.nameChanged)pieces.push(`name changed to “${preview.name}”`);if(change.memberCountChanged)pieces.push(`member count changed to ${preview.memberCount?.toLocaleString("en-IN")??"unavailable"}`);if(change.becameHealthy)pieces.push("invite link is responding again");if(!pieces.length)return;const note=`ChatScout detected that ${pieces.join(", ")}.`;const link=appUrl()&&community.slug?`${appUrl()}/community/${community.slug}`:null;const ownerTo=await ownerEmail(community.owner_user_id);if(ownerTo)await sendAdminNotification({type:"health_alert",to:ownerTo,communityName:community.name,note,link});const adminTo=process.env.ADMIN_EMAIL?.trim();if(adminTo)await sendAdminNotification({type:"health_alert",to:adminTo,communityName:community.name,note,link:appUrl()?`${appUrl()}/admin`:null});}
-function hasStableNameObservation(community:{name:string;last_remote_name:string|null},detectedName:string|null){return Boolean(detectedName&&detectedName!==community.name&&detectedName===community.last_remote_name);}
-function hasStableMemberObservation(community:{member_count:number|null;last_remote_member_count:number|null},detectedMemberCount:number|null){return typeof detectedMemberCount==="number"&&detectedMemberCount!==community.member_count&&detectedMemberCount===community.last_remote_member_count;}
+async function ownerEmail(userId: string | null) { if (!userId) return null; const { data } = await createAdminSupabaseClient().auth.admin.getUserById(userId); return data.user?.email ?? null; }
+async function audit(communityId: string, action: HealthAuditAction, note: string) { const adminUserId = process.env.ADMIN_USER_ID?.trim(); if (!adminUserId || !/^\S{36}$/i.test(adminUserId)) return; await createAdminSupabaseClient().from("admin_audit_log").insert({ action, admin_user_id: adminUserId, community_id: communityId, note }); }
+async function notifyHealthChange(community: { slug: string; name: string; owner_user_id: string | null }, pieces: string[]) { if (!pieces.length) return; const note = `ChatScout detected that ${pieces.join(", ")}.`; const link = appUrl() && community.slug ? `${appUrl()}/community/${community.slug}` : null; const ownerTo = await ownerEmail(community.owner_user_id); if (ownerTo) await sendAdminNotification({ type: "health_alert", to: ownerTo, communityName: community.name, note, link }); const adminTo = process.env.ADMIN_EMAIL?.trim(); if (adminTo) await sendAdminNotification({ type: "health_alert", to: adminTo, communityName: community.name, note, link: appUrl() ? `${appUrl()}/admin` : null }); }
+async function checkOne(community: any) { try { return { community, preview: await resolveRenderedCommunityPreview(community.invite_url), error: null as string | null }; } catch (error) { return { community, preview: { name: null, memberCount: null, imageUrl: null, finalUrl: null }, error: error instanceof Error ? error.message : "Preview resolution failed." }; } }
 
-export async function GET(request:Request){
-  if(!authorized(request))return NextResponse.json({error:"Unauthorized"},{status:401});
-  const admin=createAdminSupabaseClient();
-  const {data:communities,error}=await admin.from("communities").select("id, slug, name, invite_url, platform, owner_user_id, member_count, verification_status, health_status, health_failure_count, last_remote_name, last_remote_member_count").eq("status","published").eq("auto_monitor_enabled",true).order("health_last_checked_at",{ascending:true,nullsFirst:true}).limit(BATCH_LIMIT);
-  if(error)return NextResponse.json({error:"Unable to load communities for health check."},{status:500});
-  const results={checked:0,healthy:0,changed:0,recovered:0,archived:0,failed:0,pending:0};
-  for(const community of communities??[]){
-    results.checked+=1;
-    const preview=await resolveRenderedCommunityPreview(community.invite_url);
-    const hasSignal=Boolean(preview.name||preview.memberCount!==null||preview.imageUrl);
-    if(!hasSignal){
-      results.failed+=1;
-      const failures=(community.health_failure_count??0)+1;
-      const shouldArchive=failures>=FAILURE_THRESHOLD;
-      const now=new Date().toISOString();
-      const update:CommunityUpdate={health_status:shouldArchive?"inactive":"needs_recheck",health_last_checked_at:now,health_failure_count:failures,last_health_error:"Community invite could not be verified publicly.",...(shouldArchive?{status:"archived",archived_at:now,archived_by:process.env.ADMIN_USER_ID??null,published_at:null}: {})};
-      await admin.from("communities").update(update).eq("id",community.id);
-      await audit(community.id,shouldArchive?"auto_archived":"health_updated",shouldArchive?"Archived after three consecutive failed public invite checks.":`Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
-      if(shouldArchive){results.archived+=1;const note="The community invite could not be verified after three consecutive checks, so the listing was archived automatically.";await sendAdminNotification({type:"health_alert",to:await ownerEmail(community.owner_user_id),communityName:community.name,note,link:appUrl()?`${appUrl()}/admin`:null});const adminEmail=process.env.ADMIN_EMAIL?.trim();if(adminEmail)await sendAdminNotification({type:"health_alert",to:adminEmail,communityName:community.name,note,link:appUrl()?`${appUrl()}/admin`:null});}
-      continue;
+export async function GET(request: Request) {
+  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const admin = createAdminSupabaseClient();
+  const { data: communities, error } = await admin.from("communities")
+    .select("id,slug,name,invite_url,platform,owner_user_id,member_count,health_status,health_failure_count,last_remote_name,last_remote_member_count,external_image_url,last_remote_image_checked_at")
+    .eq("status", "published").eq("auto_monitor_enabled", true)
+    .order("health_last_checked_at", { ascending: true, nullsFirst: true }).limit(BATCH_LIMIT);
+  if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
+
+  // Phase 1 WhatsApp inventory is prioritized within the queue.
+  const ordered = [...(communities ?? [])].sort((a, b) => Number((b.platform === "whatsapp") && Array.isArray((b as any).tags) && (b as any).tags.includes("phase1")) - Number((a.platform === "whatsapp") && Array.isArray((a as any).tags) && (a as any).tags.includes("phase1")));
+  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, images: 0, memberCounts: 0 };
+
+  for (let i = 0; i < ordered.length; i += CONCURRENCY) {
+    const checked = await Promise.all(ordered.slice(i, i + CONCURRENCY).map(checkOne));
+    for (const { community, preview, error: previewError } of checked) {
+      results.checked += 1;
+      const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+      if (!hasSignal) {
+        results.failed += 1;
+        const failures = (community.health_failure_count ?? 0) + 1;
+        const now = new Date().toISOString();
+        const shouldArchive = failures >= FAILURE_THRESHOLD;
+        await admin.from("communities").update({ health_status: shouldArchive ? "inactive" : "needs_recheck", health_last_checked_at: now, health_failure_count: failures, last_health_error: previewError ?? "Community invite could not be verified publicly.", ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}) }).eq("id", community.id);
+        await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
+        if (shouldArchive) results.archived += 1;
+        continue;
+      }
+
+      const now = new Date().toISOString();
+      const update: CommunityUpdate = { health_status: "healthy", health_last_checked_at: now, health_failure_count: 0, last_health_error: null, last_remote_name: preview.name ?? community.last_remote_name, last_remote_member_count: preview.memberCount ?? community.last_remote_member_count, last_remote_image_checked_at: preview.imageUrl ? now : community.last_remote_image_checked_at, ...(preview.imageUrl ? { external_image_url: preview.imageUrl } : {}) };
+      const pieces: string[] = [];
+      let changed = false;
+      if (preview.name && preview.name !== community.name && preview.name === community.last_remote_name) { update.name = preview.name; changed = true; pieces.push(`name changed to “${preview.name}”`); }
+      if (community.member_count === null && typeof preview.memberCount === "number") { update.member_count = preview.memberCount; changed = true; results.memberCounts += 1; pieces.push(`member count set to ${preview.memberCount.toLocaleString("en-IN")}`); }
+      else if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count && preview.memberCount === community.last_remote_member_count) { update.member_count = preview.memberCount; changed = true; results.memberCounts += 1; pieces.push(`member count updated to ${preview.memberCount.toLocaleString("en-IN")}`); }
+      if (preview.imageUrl && preview.imageUrl !== community.external_image_url) { changed = true; results.images += 1; pieces.push("group image metadata refreshed"); }
+      const wasUnhealthy = community.health_status !== "healthy";
+      await admin.from("communities").update(update).eq("id", community.id);
+      if (changed) results.changed += 1;
+      if (wasUnhealthy) results.recovered += 1;
+      if (changed || wasUnhealthy) { await audit(community.id, "health_updated", "Automatic public-preview metadata/health check applied."); await notifyHealthChange(community, pieces.concat(wasUnhealthy ? ["invite link is responding again"] : [])); }
+      else results.healthy += 1;
     }
-    const wasUnhealthy=community.health_status!=="healthy";
-    const update:CommunityUpdate={health_status:"healthy",health_last_checked_at:new Date().toISOString(),health_failure_count:0,last_health_error:null,last_remote_name:preview.name??community.last_remote_name,last_remote_member_count:preview.memberCount??community.last_remote_member_count};
-    let nameChanged=false;
-    let memberCountChanged=false;
-    if(hasStableNameObservation(community,preview.name)){update.name=preview.name!;nameChanged=true;}
-    // For a previously missing count, persist the first verified public observation immediately.
-    // Future non-null changes still require two consecutive matching observations to avoid churn.
-    if(community.member_count===null&&community.platform==="whatsapp"&&typeof preview.memberCount==="number"){update.member_count=preview.memberCount;memberCountChanged=true;}
-    else if(hasStableMemberObservation(community,preview.memberCount)){update.member_count=preview.memberCount!;memberCountChanged=true;}
-    const changed=nameChanged||memberCountChanged;
-    if(!changed&&preview.name&&preview.name!==community.name&&preview.name!==community.last_remote_name)results.pending+=1;
-    if(!changed&&typeof preview.memberCount==="number"&&preview.memberCount!==community.member_count&&preview.memberCount!==community.last_remote_member_count)results.pending+=1;
-    await admin.from("communities").update(update).eq("id",community.id);
-    if(changed||wasUnhealthy){results.changed+=changed?1:0;results.recovered+=wasUnhealthy?1:0;if(changed)await audit(community.id,"health_updated", "Automatic health check applied a metadata change after a public preview observation.");await notifyHealthChange(community,{nameChanged,memberCountChanged,becameHealthy:wasUnhealthy},{name:preview.name,memberCount:preview.memberCount});}else results.healthy+=1;
   }
-  return NextResponse.json({ok:true,checkedAt:new Date().toISOString(),...results});
+  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), ...results });
 }
