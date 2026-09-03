@@ -29,15 +29,18 @@ export async function POST(request: Request) {
 
   try {
     const db = createAdminSupabaseClient() as any;
-    const [{ data: campaign }, { data: community }, { data: payout }] = await Promise.all([
+    const [{ data: campaign }, { data: community }] = await Promise.all([
       db.from('campaigns').select('id,brand_user_id,status').eq('id',campaignId).maybeSingle(),
       db.from('communities').select('id,status,claim_status,owner_user_id').eq('id',communityId).maybeSingle(),
-      db.from('admin_payout_accounts').select('*').eq('user_id', user.id).maybeSingle(),
     ]);
     if (!campaign || campaign.status !== 'completed') throw new Error('Campaign must be completed before payout settlement.');
     if (!community || community.status !== 'published' || community.claim_status !== 'claimed') throw new Error('Community must be published and claimed.');
+
+    const recipientUserId = community.owner_user_id ?? (await db.from('community_admins').select('user_id').eq('community_id',communityId).eq('role','owner').maybeSingle()).data?.user_id ?? null;
+    if (!recipientUserId) throw new Error('No community owner payout recipient is configured.');
+    const { data: payout } = await db.from('admin_payout_accounts').select('*').eq('user_id', recipientUserId).maybeSingle();
     if (!payout?.razorpay_linked_account_id || payout.kyc_status !== 'verified') throw new Error('Recipient payout account is not verified in Razorpay.');
-    if (!(await db.rpc('payment_eligibility',{p_community_id:communityId,p_user_id:payout.user_id})).data) throw new Error('Community is not enabled for payouts.');
+    if (!(await db.rpc('payment_eligibility',{p_community_id:communityId,p_user_id:recipientUserId})).data) throw new Error('Community is not enabled for payouts.');
 
     const payment = await fetchPayment(paymentId);
     if (payment.status !== 'captured') throw new Error(`Payment ${paymentId} is not captured.`);
