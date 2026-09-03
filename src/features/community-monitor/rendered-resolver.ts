@@ -2,6 +2,7 @@ import "server-only";
 
 const TIMEOUT_MS = 25_000;
 const INSTAGRAM_GENERIC_HOST = "static.cdninstagram.com";
+const WHATSAPP_HOSTS = new Set(["chat.whatsapp.com", "www.chat.whatsapp.com"]);
 
 type Preview = {
   name: string | null;
@@ -56,23 +57,24 @@ function cleanName(value: string | null | undefined) {
   if (/^(?:instagram|instagram group|instagram group chat|instagram direct|group chat on instagram)$/.test(normalized)) return null;
   if (/^(?:image|image url|generic image|instagram logo|instagram icon|app icon|favicon)$/.test(normalized)) return null;
   if (/\b(?:canvas|blob|bundle)\b/.test(normalized) && /bundle/.test(normalized)) return null;
-  if (/^\d[\d,\.\s]*\s+members?$/i.test(name)) return null;
+  if /^\d[\d,\.\s]*\s+members?$/i.test(name) return null;
   return name;
 }
 
 function extractMembers(value: string) {
-  const text = decode(value);
+  const text = decode(value).replace(/\u00a0/g, " ");
   const patterns = [
-    /["']number_of_members_text["']\s*[:=]\s*["'](\d[\d,\.\s]*)\s+members?["']/i,
-    /\b(\d[\d,\.\s]*)\s+members?\b/i,
-    /\bmembers?\s*[:·-]\s*(\d[\d,\.\s]*)\b/i,
-    /["'](?:member[_-]?count|memberCount|participants?)["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
+    /["']number_of_members_text["']\s*[:=]\s*["'](\d[\d,\.\s]*)\s+(?:members?|participants?|people)["']/i,
+    /\b(\d[\d,\.\s]*)\s+(?:members?|participants?|people)\b/i,
+    /\b(?:members?|participants?|people)\s*[:·-]\s*(\d[\d,\.\s]*)\b/i,
+    /["'](?:member[_-]?count|memberCount|participants?|size|groupSize)["']\s*[:=]\s*["']?(\d[\d,\.\s]*)/i,
+    /\b(?:group\s+has|with|of)\s+(\d[\d,\.\s]*)\s+(?:members?|participants?|people)\b/i,
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (!match) continue;
     const n = Number(match[1].replace(/[^0-9]/g, ""));
-    if (Number.isSafeInteger(n)) return n;
+    if (Number.isSafeInteger(n) && n >= 0 && n <= 5000000) return n;
   }
   return null;
 }
@@ -109,7 +111,7 @@ function extractName(html: string, memberCount: number | null, title: string | n
   if (heading) return heading;
   const text = plainText(html).replace(/\s+/g, " ");
   if (memberCount !== null) {
-    const nearby = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+members?/i)?.[1];
+    const nearby = text.match(/(.{2,120}?)\s+\d[\d,\.\s]*\s+(?:members?|participants?)/i)?.[1];
     const candidate = cleanName(nearby);
     if (candidate) return candidate;
   }
@@ -170,16 +172,61 @@ async function request(url: string, headers: HeadersInit = {}) {
   } finally { clearTimeout(timer); }
 }
 
+function isWhatsAppInviteUrl(inviteUrl: string) {
+  try {
+    const url = new URL(inviteUrl);
+    return WHATSAPP_HOSTS.has(url.hostname.toLowerCase()) && /^\/[A-Za-z0-9_-]+\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWhatsAppDirect(inviteUrl: string): Promise<Preview> {
+  const response = await request(inviteUrl, {
+    Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    Referer: "https://www.whatsapp.com/",
+  });
+  if (!response.ok) return EMPTY;
+  const html = await response.text();
+  const structured = extractStructuredProps(html);
+  const metaDescription = [...html.matchAll(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']+)["']/gi)]
+    .map((m) => decode(m[1]))
+    .join(" ");
+  const memberCount = structured.memberCount ?? extractMembers(metaDescription) ?? extractMembers(html);
+  const name = structured.title ?? extractName(html, memberCount, null, null);
+  const structuredImage = absolute(structured.imageUrl, response.url || inviteUrl);
+  const htmlImage = firstUsableImageFromHtml(html, response.url || inviteUrl);
+  const image = [structuredImage, htmlImage].find((value): value is string => isUsableImage(value)) ?? null;
+  return { name, memberCount, imageUrl: image, finalUrl: response.url || inviteUrl };
+}
+
+async function fetchJina(url: string): Promise<Preview> {
+  try {
+    const target = `https://r.jina.ai/http://${url.replace(/^https?:\/\//i, "")}`;
+    const response = await request(target, { Accept: "text/plain" });
+    if (!response.ok) return EMPTY;
+    const text = await response.text();
+    return {
+      name: cleanName(text.match(/^#\s+(.+)$/m)?.[1] ?? null),
+      memberCount: extractMembers(text),
+      imageUrl: null,
+      finalUrl: url,
+    };
+  } catch {
+    return EMPTY;
+  }
+}
+
 async function fetchMicrolink(inviteUrl: string): Promise<Preview> {
   const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(inviteUrl)}&meta=true&data.html.selector=body`;
   const response = await request(endpoint, { Accept: "application/json" });
   if (!response.ok) return EMPTY;
-  const payload = await response.json() as { data?: { html?: string; title?: string; url?: string; image?: { url?: string | null } | null } };
+  const payload = await response.json() as { data?: { html?: string; title?: string; description?: string; url?: string; image?: { url?: string | null } | null } };
   const data = payload.data;
   if (!data) return EMPTY;
   const html = data.html ?? "";
   const structured = extractStructuredProps(html);
-  const memberCount = structured.memberCount ?? extractMembers(html);
+  const memberCount = structured.memberCount ?? extractMembers(html) ?? extractMembers(data.description ?? "");
   const name = structured.title ?? extractName(html, memberCount, data.title ?? null, null);
   const base = data.url ?? inviteUrl;
   const structuredImage = absolute(structured.imageUrl, base);
@@ -211,13 +258,26 @@ async function fetchInstagram(url: string): Promise<Preview> {
 }
 
 export async function resolveRenderedCommunityPreview(inviteUrl: string): Promise<Preview> {
+  if (isWhatsAppInviteUrl(inviteUrl)) {
+    try {
+      const direct = await fetchWhatsAppDirect(inviteUrl);
+      if (direct.name || direct.memberCount !== null || direct.imageUrl) return direct;
+    } catch {
+      // Continue to generic resolvers.
+    }
+    try {
+      const jina = await fetchJina(inviteUrl);
+      if (jina.name || jina.memberCount !== null) return jina;
+    } catch {
+      // Continue.
+    }
+  }
+
   try {
     const rendered = await fetchMicrolink(inviteUrl);
-    // Microlink is the generic image source for Discord/Telegram/WhatsApp/etc.
-    // Return any useful signal instead of requiring all fields to be present.
     if (rendered.name || rendered.memberCount !== null || rendered.imageUrl) return rendered;
   } catch {
-    // Continue to the Instagram-specific fallback.
+    // Continue to Instagram-specific fallback.
   }
 
   const direct = instagramDirectUrl(inviteUrl);
