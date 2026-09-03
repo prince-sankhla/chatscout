@@ -1,0 +1,266 @@
+/* ChatScout homepage visual polish: live count + animated trust card. */
+
+.launch-owner-flow[aria-label="Live community count"] {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  margin-top: 16px;
+  padding: 10px 12px 10px 14px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--purple) 28%, var(--line));
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 8% 50%, color-mix(in srgb, var(--purple) 16%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 96%, var(--cs-violet-soft)), var(--surface));
+  box-shadow: 0 12px 28px rgba(54, 25, 111, .08), inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+.launch-owner-flow[aria-label="Live community count"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -35%;
+  width: 34%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--purple) 16%, white), transparent);
+  animation: liveCountSweep 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.launch-owner-flow[aria-label="Live community count"]::after {
+  content: "LIVE";
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--purple) 38%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--purple) 10%, var(--surface));
+  color: var(--purple);
+  font-size: 7px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .13em;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--purple) 13%, transparent);
+  pointer-events: none;
+}
+
+.launch-owner-flow[aria-label="Live community count"] strong {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: -.035em;
+  white-space: nowrap;
+}
+
+.launch-owner-flow[aria-label="Live community count"] strong::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 1px;
+  border-radius: 50%;
+  background: var(--cs-green);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cs-green) 13%, transparent), 0 0 14px color-mix(in srgb, var(--cs-green) 40%, transparent);
+  animation: liveDotPulse 2.1s ease-in-out infinite;
+}
+
+.launch-owner-flow[aria-label="Live community count"] span {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: .01em;
+}
+
+.launch-owner-flow[aria-label="Live community count"] a {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--purple) 24%, var(--line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 78%, var(--cs-violet-soft));
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 850;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.launch-owner-flow[aria-label="Live community count"] a:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--purple) 48%, var(--line));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--purple) 11%, transparent);
+}
+
+@keyframes liveCountSweep {
+  0%, 28% { left: -35%; opacity: 0; }
+  38% { opacity: 1; }
+  62% { left: 110%; opacity: .55; }
+  100% { left: 110%; opacity: 0; }
+}
+
+@keyframes liveDotPulse {
+  0%, 100% { transform: scale(.9); opacity: .72; }
+  50% { transform: scale(1.13); opacity: 1; }
+}
+
+.why-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  border-color: color-mix(in srgb, var(--purple) 18%, var(--line));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--purple) 14%, transparent), transparent 38%),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, #ff3fa4 7%, transparent), transparent 34%),
+    var(--surface);
+  box-shadow: 0 18px 42px rgba(44, 20, 91, .09), inset 0 1px 0 rgba(255,255,255,.12);
+  animation: whyCardFloat 7s ease-in-out infinite;
+  transition: transform .45s cubic-bezier(.22,.8,.28,1), box-shadow .35s ease, border-color .25s ease;
+}
+
+.why-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(from 180deg, transparent 0 27%, color-mix(in srgb, var(--purple) 58%, transparent) 36%, color-mix(in srgb, #ff3fa4 48%, transparent) 46%, transparent 58% 100%);
+  filter: blur(1px);
+  opacity: .58;
+  animation: whyBorderSpin 11s linear infinite;
+}
+
+.why-card::after {
+  content: "";
+  position: absolute;
+  top: -90px;
+  right: -80px;
+  z-index: -1;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--purple) 19%, transparent), transparent 68%);
+  filter: blur(8px);
+  animation: whyGlowDrift 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.why-card:hover {
+  transform: perspective(900px) rotateX(1deg) rotateY(-1.8deg) translateY(-5px);
+  border-color: color-mix(in srgb, var(--purple) 42%, var(--line));
+  box-shadow: 0 24px 52px rgba(44,20,91,.15), 0 0 0 1px color-mix(in srgb, var(--purple) 10%, transparent);
+}
+
+.why-card-head,
+.why-card h2,
+.why-card .why-card-intro,
+.why-card .why-feature-grid,
+.why-card .why-card-proof,
+.why-card .why-card-cta,
+.why-card .why-card-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.why-card-kicker {
+  letter-spacing: .12em;
+}
+
+.why-card-badge {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--purple) 9%, transparent);
+}
+
+.why-feature-grid article {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  transition: transform .25s ease, border-color .25s ease, background .25s ease;
+}
+
+.why-feature-grid article::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -60% -20%;
+  height: 90px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--purple) 11%, transparent), transparent 66%);
+  opacity: 0;
+  transition: opacity .25s ease;
+  pointer-events: none;
+}
+
+.why-feature-grid article:hover {
+  transform: translateY(-3px) scale(1.012);
+  border-color: color-mix(in srgb, var(--purple) 28%, var(--line));
+  background: color-mix(in srgb, var(--surface) 94%, var(--cs-violet-soft));
+}
+
+.why-feature-grid article:hover::after { opacity: 1; }
+
+.why-feature-icon {
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--purple) 9%, transparent);
+}
+
+.why-card-proof {
+  padding: 4px 0 2px;
+}
+
+@keyframes whyCardFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(.15deg); }
+}
+
+@keyframes whyBorderSpin { to { transform: rotate(360deg); } }
+
+@keyframes whyGlowDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-16px, 14px) scale(1.12); }
+}
+
+@media (max-width: 1040px) {
+  .launch-owner-flow[aria-label="Live community count"] {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .launch-owner-flow[aria-label="Live community count"] a {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .launch-owner-flow[aria-label="Live community count"] {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 13px;
+  }
+  .launch-owner-flow[aria-label="Live community count"] strong { font-size: 18px; }
+  .launch-owner-flow[aria-label="Live community count"] a {
+    grid-column: auto;
+    width: fit-content;
+  }
+  .launch-owner-flow[aria-label="Live community count"]::after { top: 10px; right: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-owner-flow[aria-label="Live community count"]::before,
+  .launch-owner-flow[aria-label="Live community count"] strong::before,
+  .why-card,
+  .why-card::before,
+  .why-card::after { animation: none !important; }
+  .why-card:hover { transform: none; }
+}
