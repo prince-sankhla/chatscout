@@ -3,7 +3,7 @@ begin;
 create type public.payout_account_kyc_status as enum ('not_started','pending','needs_action','verified','rejected','suspended');
 create type public.transaction_status as enum ('pending','completed','failed','refunded');
 
-a lter table public.community_monetization
+alter table public.community_monetization
   add column if not exists payout_enabled boolean not null default false;
 
 create table if not exists public.admin_payout_accounts (
