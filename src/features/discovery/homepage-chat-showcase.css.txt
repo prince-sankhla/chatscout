@@ -1,0 +1,1 @@
+/* Homepage chat showcase styles are merged into globals.css. */
