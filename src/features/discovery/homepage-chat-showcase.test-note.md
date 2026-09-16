@@ -1,0 +1,1 @@
+Homepage chat carousel placeholder. Binary image files must be committed under public/images/homepage-chats/ from the local workspace.
