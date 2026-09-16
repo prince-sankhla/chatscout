@@ -2,13 +2,194 @@ import Link from "next/link";
 import { CommunityGrid } from "@/components/community/community-grid";
 import { DiscoveryFilters } from "@/components/discovery/discovery-filters";
 import { SearchForm } from "@/components/discovery/search-form";
+import { TrackEvent } from "@/components/analytics/track-event";
 import { getActiveCategories, getTrendingPublishedCommunities, type CommunityPlatform } from "@/features/communities/data-access";
-import { getPublishedCommunityPage, searchPublishedCommunityPage, PUBLISHED_PAGE_SIZE } from "@/features/communities/published-page";
+import { getPublishedCommunityPage, PUBLISHED_PAGE_SIZE } from "@/features/communities/published-page";
+import { searchPublishedCommunitiesByIntent } from "@/features/discovery/intent-search";
 import { toCommunityPresentation } from "@/features/communities/presentation";
 import styles from "./platform-listing.module.css";
-type ListingKind="search"|"trending"|"new"; type ListingProps={kind:ListingKind;query?:string;category?:string;platform?:CommunityPlatform|"";sort?:"newest"|"members";language?:string;region?:string;age?:string;members?:string;page?:number};
-function memberBounds(value:string){if(!value)return{};const[min,max]=value.split("-").map(Number);return{minMembers:Number.isFinite(min)?min:undefined,maxMembers:Number.isFinite(max)?max:undefined}}
-const TOPIC_CHIPS=["AI & ML","Coding","JEE","NEET","Anime","Gaming","Startups","Fitness","Jaipur"];
-function pageHref(page:number, props:ListingProps){const params=new URLSearchParams();if(props.query)params.set("q",props.query);if(props.category)params.set("category",props.category);if(props.platform)params.set("platform",props.platform);if(props.sort&&props.sort!=="newest")params.set("sort",props.sort);if(props.language)params.set("language",props.language);if(props.region)params.set("region",props.region);if(props.age)params.set("age",props.age);if(props.members)params.set("members",props.members);if(page>1)params.set("page",String(page));return `/search${params.toString()?`?${params.toString()}`:""}`;}
-export async function PlatformListing({kind,query="",category="",platform="",sort="newest",language="",region="",age="",members="",page=1}:ListingProps){const bounds=memberBounds(members);const filters={categorySlug:category||undefined,platform:platform||undefined,language:language||undefined,region:region||undefined,age:(age||undefined) as "any"|"everyone"|"13+"|"16+"|"18+"|undefined,...bounds};const listingProps:ListingProps={kind,query,category,platform,sort,language,region,age,members};const categoryResult=await getActiveCategories();let payload:{data:unknown[];total:number}|null=null;let listingError:null|{code:"COMMUNITY_QUERY_FAILED";message:string}=null;if(kind==="trending"){const trending=await getTrendingPublishedCommunities({...filters},24);payload={data:trending.data??[],total:trending.data?.length??0};listingError=trending.error;}else{const result=kind==="search"?await searchPublishedCommunityPage(query,{...filters,sort},page,PUBLISHED_PAGE_SIZE):await getPublishedCommunityPage({...filters,sort:sort==="members"?"members":"newest"},page,PUBLISHED_PAGE_SIZE);listingError=result.error;if(result.data)payload=result.data;}
-const rawCommunities=payload?.data??[];const communities=await Promise.all((rawCommunities as Parameters<typeof toCommunityPresentation>[0][]).map(toCommunityPresentation));const total=payload?.total??communities.length;const totalPages=Math.max(1,Math.ceil(total/PUBLISHED_PAGE_SIZE));const categoryOptions=categoryResult.data?.map(row=>[row.slug,row.name] as const)??[];const title=kind==="search"?"Search communities":kind==="trending"?"Trending communities":"New communities";const platformLabel=platform?platform[0].toUpperCase()+platform.slice(1):"all platforms";const subtitle=kind==="search"&&query?`Results for “${query}”`:kind==="trending"?"What people are discovering and joining right now.":`Freshly published communities across ${platformLabel}.`;const activeFilterCount=[category,platform,language,region,age,members].filter(Boolean).length;return <main className="platform-page"><section className="platform-heading"><Link href="/" className="back-link">← Back to discovery</Link><p className="eyebrow">CHATSCOUT DISCOVERY</p><h1>{title}</h1><p>{subtitle}</p>{kind==="search"&&<SearchForm query={query} className="platform-search"/>}<div className={styles.topics} aria-label="Popular topics"><span>Popular:</span>{TOPIC_CHIPS.map(topic=><Link href={`/search?q=${encodeURIComponent(topic)}`} key={topic}>{topic}</Link>)}</div></section><div className={styles.toolbar}><div className={styles.summary}><strong>{total.toLocaleString()} {total===1?"community":"communities"}</strong><span>{activeFilterCount?`${activeFilterCount} filter${activeFilterCount===1?"":"s"} active`:kind==="trending"?"Ranked by recent views + joins":"All published listings"}</span></div><DiscoveryFilters category={category} platform={platform} sort={sort} language={language} region={region} age={age} members={members} showSort={kind!=="trending"} categories={categoryOptions.length?categoryOptions:undefined}/></div>{listingError?<p className="neon-empty">Communities are temporarily unavailable. Please try again later.</p>:communities.length?<><CommunityGrid communities={communities}/>{totalPages>1&&<nav aria-label="Community pages" style={{display:"flex",justifyContent:"center",alignItems:"center",gap:12,padding:"28px 0 8px",flexWrap:"wrap"}}>{page>1&&<Link href={pageHref(page-1,listingProps)} className="back-link">← Previous</Link>}<span style={{fontSize:13,fontWeight:700}}>Page {page} of {totalPages}</span>{page<totalPages&&<Link href={pageHref(page+1,listingProps)} className="back-link">Next →</Link>}</nav>}</>:<div className={styles.empty}><p className="neon-empty">No published communities match these filters yet.</p><Link href="/submit" className={`join-button ${styles.emptyCta}`}>List the first community</Link></div>}</main>}
+
+type ListingKind = "search" | "trending" | "new";
+type ListingProps = {
+  kind: ListingKind;
+  query?: string;
+  category?: string;
+  platform?: CommunityPlatform | "";
+  sort?: "newest" | "members";
+  language?: string;
+  region?: string;
+  age?: string;
+  members?: string;
+  page?: number;
+};
+
+function memberBounds(value: string) {
+  if (!value) return {};
+  const [min, max] = value.split("-").map(Number);
+  return {
+    minMembers: Number.isFinite(min) ? min : undefined,
+    maxMembers: Number.isFinite(max) ? max : undefined,
+  };
+}
+
+const TOPIC_CHIPS = ["AI & ML", "Coding", "JEE", "NEET", "Anime", "Gaming", "Startups", "Fitness", "Jaipur"];
+
+function pageHref(page: number, props: ListingProps) {
+  const params = new URLSearchParams();
+  if (props.query) params.set("q", props.query);
+  if (props.category) params.set("category", props.category);
+  if (props.platform) params.set("platform", props.platform);
+  if (props.sort && props.sort !== "newest") params.set("sort", props.sort);
+  if (props.language) params.set("language", props.language);
+  if (props.region) params.set("region", props.region);
+  if (props.age) params.set("age", props.age);
+  if (props.members) params.set("members", props.members);
+  if (page > 1) params.set("page", String(page));
+  return `/search${params.toString() ? `?${params.toString()}` : ""}`;
+}
+
+export async function PlatformListing({
+  kind,
+  query = "",
+  category = "",
+  platform = "",
+  sort = "newest",
+  language = "",
+  region = "",
+  age = "",
+  members = "",
+  page = 1,
+}: ListingProps) {
+  const bounds = memberBounds(members);
+  const filters = {
+    categorySlug: category || undefined,
+    platform: platform || undefined,
+    language: language || undefined,
+    region: region || undefined,
+    age: (age || undefined) as "any" | "everyone" | "13+" | "16+" | "18+" | undefined,
+    ...bounds,
+  };
+  const listingProps: ListingProps = { kind, query, category, platform, sort, language, region, age, members };
+  const categoryResult = await getActiveCategories();
+
+  let payload: { data: unknown[]; total: number } | null = null;
+  let listingError: null | { code: "COMMUNITY_QUERY_FAILED"; message: string } = null;
+  let intentSummary = "";
+  let intentGoal = "";
+  let intentPlatform = "";
+  let intentRegion = "";
+
+  if (kind === "trending") {
+    const trending = await getTrendingPublishedCommunities({ ...filters }, 24);
+    payload = { data: trending.data ?? [], total: trending.data?.length ?? 0 };
+    listingError = trending.error;
+  } else if (kind === "search" && query.trim()) {
+    const result = await searchPublishedCommunitiesByIntent(query, filters, page, PUBLISHED_PAGE_SIZE);
+    payload = { data: result.data, total: result.total };
+    intentSummary = result.intent.summary;
+    intentGoal = result.intent.goal ?? "";
+    intentPlatform = result.intent.platform ?? "";
+    intentRegion = result.intent.region ?? "";
+  } else {
+    const result = await getPublishedCommunityPage({ ...filters, sort }, page, PUBLISHED_PAGE_SIZE);
+    listingError = result.error;
+    if (result.data) payload = result.data;
+  }
+
+  const rawCommunities = payload?.data ?? [];
+  const communities = await Promise.all(
+    (rawCommunities as Parameters<typeof toCommunityPresentation>[0][]).map(toCommunityPresentation),
+  );
+  const total = payload?.total ?? communities.length;
+  const totalPages = Math.max(1, Math.ceil(total / PUBLISHED_PAGE_SIZE));
+  const categoryOptions = categoryResult.data?.map((row) => [row.slug, row.name] as const) ?? [];
+  const title = kind === "search" ? "Search communities" : kind === "trending" ? "Trending communities" : "New communities";
+  const platformLabel = platform ? platform[0].toUpperCase() + platform.slice(1) : "all platforms";
+  const subtitle = kind === "search" && query
+    ? `Results for “${query}”`
+    : kind === "trending"
+      ? "What people are discovering and joining right now."
+      : `Freshly published communities across ${platformLabel}.`;
+  const activeFilterCount = [category, platform, language, region, age, members].filter(Boolean).length;
+  const searchMetadata = kind === "search" && query
+    ? {
+        query,
+        intent_summary: intentSummary,
+        intent_goal: intentGoal || null,
+        inferred_platform: intentPlatform || null,
+        inferred_region: intentRegion || null,
+      }
+    : undefined;
+
+  return (
+    <main className="platform-page">
+      {searchMetadata && (
+        <TrackEvent
+          eventName="search"
+          dedupeKey={`search:${query}:${category}:${platform}:${language}:${region}:${age}:${members}:${page}`}
+          metadata={searchMetadata}
+        />
+      )}
+      <section className="platform-heading">
+        <Link href="/" className="back-link">← Back to discovery</Link>
+        <p className="eyebrow">CHATSCOUT DISCOVERY</p>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+        {kind === "search" && <SearchForm query={query} className="platform-search" />}
+        {kind === "search" && query && intentSummary !== "Keyword search" && (
+          <p className="eyebrow" aria-live="polite">Understood as: {intentSummary}</p>
+        )}
+        <div className={styles.topics} aria-label="Popular topics">
+          <span>Popular:</span>
+          {TOPIC_CHIPS.map((topic) => <Link href={`/search?q=${encodeURIComponent(topic)}`} key={topic}>{topic}</Link>)}
+        </div>
+      </section>
+
+      <div className={styles.toolbar}>
+        <div className={styles.summary}>
+          <strong>{total.toLocaleString()} {total === 1 ? "community" : "communities"}</strong>
+          <span>
+            {activeFilterCount
+              ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active`
+              : kind === "trending"
+                ? "Ranked by recent views + joins"
+                : kind === "search"
+                  ? "Ranked by relevance + useful community signals"
+                  : "All published listings"}
+          </span>
+        </div>
+        <DiscoveryFilters
+          category={category}
+          platform={platform}
+          sort={sort}
+          language={language}
+          region={region}
+          age={age}
+          members={members}
+          showSort={kind !== "trending"}
+          categories={categoryOptions.length ? categoryOptions : undefined}
+        />
+      </div>
+
+      {listingError ? (
+        <p className="neon-empty">Communities are temporarily unavailable. Please try again later.</p>
+      ) : communities.length ? (
+        <>
+          <CommunityGrid communities={communities} />
+          {totalPages > 1 && (
+            <nav aria-label="Community pages" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, padding: "28px 0 8px", flexWrap: "wrap" }}>
+              {page > 1 && <Link href={pageHref(page - 1, listingProps)} className="back-link">← Previous</Link>}
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Page {page} of {totalPages}</span>
+              {page < totalPages && <Link href={pageHref(page + 1, listingProps)} className="back-link">Next →</Link>}
+            </nav>
+          )}
+        </>
+      ) : (
+        <div className={styles.empty}>
+          <p className="neon-empty">No published communities match these filters yet.</p>
+          <Link href="/submit" className={`join-button ${styles.emptyCta}`}>List the first community</Link>
+        </div>
+      )}
+    </main>
+  );
+}
