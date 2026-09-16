@@ -1,0 +1,1 @@
+The hero right-side visual is intended to be replaced by HomepageChatShowcase once PNGs are available in public/images/homepage-chats/.
