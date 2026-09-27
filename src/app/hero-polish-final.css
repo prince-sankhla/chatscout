@@ -17,6 +17,120 @@
   filter: drop-shadow(0 24px 36px rgba(25, 12, 58, .22)) !important;
 }
 
+/* Homepage chat carousel: keep all previews in one fixed frame and cross-fade
+   between them. This must override the generic .neon-art img hero rules above
+   because next/image with fill relies on absolute positioning. */
+.homepage-chat-showcase {
+  position: relative !important;
+  display: grid !important;
+  justify-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.homepage-chat-frame {
+  position: relative !important;
+  width: min(100%, 420px) !important;
+  aspect-ratio: 1 / 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+}
+
+.homepage-chat-image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  display: block !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: none !important;
+  animation: none !important;
+  transition: opacity .55s ease, visibility 0s linear .55s !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  will-change: opacity;
+}
+
+.homepage-chat-image.is-active {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition-delay: 0s !important;
+  z-index: 2 !important;
+}
+
+.homepage-chat-glow {
+  position: absolute !important;
+  inset: 9% !important;
+  z-index: 0 !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 46% 44%, rgba(112, 69, 232, .20), transparent 56%),
+    radial-gradient(circle at 58% 62%, rgba(239, 61, 145, .12), transparent 48%) !important;
+  filter: blur(22px) !important;
+  pointer-events: none !important;
+}
+
+.homepage-chat-dots {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  margin-top: 11px !important;
+  min-height: 12px !important;
+}
+
+.homepage-chat-dots span {
+  width: 5px !important;
+  height: 5px !important;
+  min-width: 5px !important;
+  min-height: 5px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: var(--muted) !important;
+  opacity: .30 !important;
+  transform: scale(1) !important;
+  transition: opacity .2s ease, transform .2s ease, background .2s ease !important;
+}
+
+.homepage-chat-dots span.is-active {
+  background: var(--purple) !important;
+  opacity: 1 !important;
+  transform: scale(1.28) !important;
+}
+
+.neon-art .homepage-chat-image:hover {
+  transform: none !important;
+}
+
+@media (max-width: 1039px) and (min-width: 761px) {
+  .homepage-chat-frame {
+    width: min(100%, 350px) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Mobile remains text-first; hero-polish-final intentionally hides .neon-art. */
+  .homepage-chat-frame {
+    width: min(100%, 310px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-chat-image {
+    transition: none !important;
+  }
+  .homepage-chat-dots span {
+    transition: none !important;
+  }
+}
+
 .neon-hero-actions .hero-action.primary,
 .neon-hero-actions .hero-action.primary:hover,
 .neon-hero-actions .hero-action.primary:focus-visible,
