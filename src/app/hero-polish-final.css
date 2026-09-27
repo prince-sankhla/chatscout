@@ -30,7 +30,7 @@
 
 .homepage-chat-frame {
   position: relative !important;
-  width: min(100%, 560px) !important;
+  width: min(112%, 620px) !important;
   aspect-ratio: 1 / 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
@@ -51,7 +51,7 @@
   object-position: center !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  transform: scale(1.38) !important;
+  transform: scale(1.92) !important;
   transform-origin: center center !important;
   animation: none !important;
   transition: opacity .55s ease, visibility 0s linear .55s !important;
@@ -107,13 +107,10 @@
   transform: scale(1.28) !important;
 }
 
-.neon-art .homepage-chat-image:hover {
-  transform: none !important;
-}
 
 @media (max-width: 1039px) and (min-width: 761px) {
   .homepage-chat-frame {
-    width: min(100%, 470px) !important;
+    width: min(112%, 540px) !important;
   }
 }
 
@@ -322,5 +319,19 @@
 }
 @media (max-width: 1039px) and (min-width: 761px) {
   .neon-art .homepage-chat-image,
-  .neon-art .homepage-chat-image.is-active { transform: scale(1.30) !important; }
+  .neon-art .homepage-chat-image.is-active { transform: scale(1.72) !important; }
+}
+
+/* Final hero carousel scale pass */
+@media (min-width: 1040px) {
+  .neon-art .homepage-chat-showcase {
+    width: 112% !important;
+    transform: translateX(2%) !important;
+  }
+}
+@media (max-width: 1039px) and (min-width: 761px) {
+  .neon-art .homepage-chat-showcase {
+    width: 108% !important;
+    transform: translateX(1%) !important;
+  }
 }
