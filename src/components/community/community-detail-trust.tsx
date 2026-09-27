@@ -10,6 +10,7 @@ type Props = {
   restrictions: string | null;
   verificationStatus: string;
   healthLabel: string;
+  healthStatus: "unknown" | "healthy" | "needs_recheck" | "inactive";
   lastVerifiedAt: string | null;
 };
 
@@ -27,6 +28,7 @@ export function CommunityDetailTrust({
   restrictions,
   verificationStatus,
   healthLabel,
+  healthStatus,
   lastVerifiedAt,
 }: Props) {
   const verified = verificationStatus === "verified";
@@ -72,9 +74,12 @@ export function CommunityDetailTrust({
           </div>
           <p className={styles.lead}>{healthLabel}</p>
           <div className={styles.checks}>
-            <span><i>✓</i> Invite link checked</span>
-            <span><i>✓</i> Listing reviewed by ChatScout</span>
-            {verifiedDate && <span><i>✓</i> Last checked {verifiedDate}</span>}
+            {healthStatus === "healthy" && <span><i>✓</i> Invite link checked recently</span>}
+            {healthStatus === "needs_recheck" && <span><i>!</i> Invite link needs a recheck</span>}
+            {healthStatus === "inactive" && <span><i>!</i> Invite link is currently unavailable</span>}
+            {verified && <span><i>✓</i> Community verification completed</span>}
+            <span><i>✓</i> Published on ChatScout</span>
+            {verifiedDate && <span><i>✓</i> Last verified {verifiedDate}</span>}
           </div>
         </article>
 
