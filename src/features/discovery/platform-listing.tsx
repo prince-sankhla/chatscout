@@ -45,7 +45,8 @@ function pageHref(page: number, props: ListingProps) {
   if (props.age) params.set("age", props.age);
   if (props.members) params.set("members", props.members);
   if (page > 1) params.set("page", String(page));
-  return `/search${params.toString() ? `?${params.toString()}` : ""}`;
+  const basePath = props.kind === "new" ? "/new" : props.kind === "trending" ? "/trending" : "/search";
+  return `${basePath}${params.toString() ? `?${params.toString()}` : ""}`;
 }
 
 export async function PlatformListing({
