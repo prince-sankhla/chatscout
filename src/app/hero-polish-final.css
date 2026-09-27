@@ -30,27 +30,29 @@
 
 .homepage-chat-frame {
   position: relative !important;
-  width: min(100%, 500px) !important;
+  width: min(100%, 560px) !important;
   aspect-ratio: 1 / 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
   isolation: isolate !important;
 }
 
-.homepage-chat-image {
+.neon-art .homepage-chat-image {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
   max-height: none !important;
+  box-sizing: border-box !important;
   margin: 0 !important;
   display: block !important;
   object-fit: contain !important;
   object-position: center !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  transform: none !important;
+  transform: scale(1.38) !important;
+  transform-origin: center center !important;
   animation: none !important;
   transition: opacity .55s ease, visibility 0s linear .55s !important;
   z-index: 1 !important;
@@ -58,7 +60,7 @@
   will-change: opacity;
 }
 
-.homepage-chat-image.is-active {
+.neon-art .homepage-chat-image.is-active {
   opacity: 1 !important;
   visibility: visible !important;
   transition-delay: 0s !important;
@@ -111,14 +113,14 @@
 
 @media (max-width: 1039px) and (min-width: 761px) {
   .homepage-chat-frame {
-    width: min(100%, 430px) !important;
+    width: min(100%, 470px) !important;
   }
 }
 
 @media (max-width: 760px) {
   /* Mobile remains text-first; hero-polish-final intentionally hides .neon-art. */
   .homepage-chat-frame {
-    width: min(100%, 330px) !important;
+    width: min(100%, 340px) !important;
   }
 }
 
@@ -299,4 +301,26 @@
 
 @media (prefers-reduced-motion: reduce) {
   .neon-art img { animation: none !important; }
+}
+
+/* Carousel isolation: generic hero artwork rules must never resize or animate these frames. */
+.neon-art .homepage-chat-image,
+.neon-art .homepage-chat-image.is-active {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  display: block !important;
+  transform: scale(1.38) !important;
+  transform-origin: center center !important;
+  animation: none !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+@media (max-width: 1039px) and (min-width: 761px) {
+  .neon-art .homepage-chat-image,
+  .neon-art .homepage-chat-image.is-active { transform: scale(1.30) !important; }
 }
