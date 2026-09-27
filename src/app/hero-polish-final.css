@@ -30,7 +30,7 @@
 
 .homepage-chat-frame {
   position: relative !important;
-  width: min(100%, 420px) !important;
+  width: min(100%, 500px) !important;
   aspect-ratio: 1 / 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
@@ -111,14 +111,14 @@
 
 @media (max-width: 1039px) and (min-width: 761px) {
   .homepage-chat-frame {
-    width: min(100%, 350px) !important;
+    width: min(100%, 430px) !important;
   }
 }
 
 @media (max-width: 760px) {
   /* Mobile remains text-first; hero-polish-final intentionally hides .neon-art. */
   .homepage-chat-frame {
-    width: min(100%, 310px) !important;
+    width: min(100%, 330px) !important;
   }
 }
 
