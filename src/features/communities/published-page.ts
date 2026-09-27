@@ -46,7 +46,7 @@ export async function getPublishedCommunityPage(
   }
 
   const orderColumn = filters.sort === "members" ? "member_count" : "published_at";
-  query = query.order("image_path", { ascending: false, nullsFirst: false }).order(orderColumn, { ascending: false, nullsFirst: false }).order("id", { ascending: true });
+  query = query.order(orderColumn, { ascending: false, nullsFirst: false }).order("image_path", { ascending: false, nullsFirst: false }).order("id", { ascending: true });
   const from = (safePage - 1) * safeSize;
   const { data, error, count } = await query.range(from, from + safeSize - 1);
   if (error) return failure(error);
