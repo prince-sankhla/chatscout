@@ -12,6 +12,7 @@ export type Community = {
   imageUrl?: string | null;
   listingAgeLabel?: string;
   healthLabel?: string;
+  healthStatus?: "unknown" | "healthy" | "needs_recheck" | "inactive";
   verificationStatus?: "unverified" | "verified" | "needs_review" | "broken";
   platform?: "instagram" | "whatsapp" | "telegram" | "discord";
 };
