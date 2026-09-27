@@ -27,7 +27,7 @@ export function HomepageChatCarousel() {
 
   return (
     <div className="homepage-chat-showcase" aria-label="Community chat preview" aria-live="off">
-      <div className={`homepage-chat-frame${loaded ? " is-loaded" : ""}`}>
+      <div className={`homepage-chat-frame${loaded ? " is-loaded" : ""}`} data-carousel-index={index}>
         {IMAGES.map((src, imageIndex) => (
           <Image
             key={src}
@@ -35,6 +35,7 @@ export function HomepageChatCarousel() {
             alt={`ChatScout community chat preview ${imageIndex + 1}`}
             fill
             priority={imageIndex === 0}
+            loading={imageIndex === 0 ? "eager" : "eager"}
             quality={95}
             sizes="(max-width: 760px) 88vw, (max-width: 1039px) 38vw, (max-width: 1180px) 430px, 500px"
             className={`homepage-chat-image${index === imageIndex ? " is-active" : ""}`}
