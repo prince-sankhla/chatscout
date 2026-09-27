@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 
@@ -21,6 +21,7 @@ function serverSnapshot() { return "[]"; }
 
 export function CommunityDetailActions({ slug, name }: { slug: string; name: string }) {
   const savedSnapshot = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  const [shareLabel, setShareLabel] = useState("Share");
   const saved = (() => { try { return (JSON.parse(savedSnapshot) as string[]).includes(slug); } catch { return false; } })();
 
   function toggleSaved() {
@@ -35,10 +36,20 @@ export function CommunityDetailActions({ slug, name }: { slug: string; name: str
     const url = window.location.href;
     if (navigator.share) {
       await navigator.share({ title: `${name} | ChatScout`, text: `Discover ${name} on ChatScout.`, url }).catch(() => undefined);
+      setShareLabel("Shared");
+      window.setTimeout(() => setShareLabel("Share"), 1600);
       return;
     }
-    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(url).then(() => {
+        setShareLabel("Link copied");
+        window.setTimeout(() => setShareLabel("Share"), 1800);
+      }).catch(() => setShareLabel("Copy failed"));
+      return;
+    }
+    setShareLabel("Copy unavailable");
+    window.setTimeout(() => setShareLabel("Share"), 1800);
   }
 
-  return <div className="detail-actions"><button type="button" onClick={toggleSaved} className={saved ? "is-saved" : ""} aria-pressed={saved}><Icon name="bookmark" size={17} />{saved ? "Saved" : "Save"}</button><button type="button" onClick={share}><Icon name="share" size={17} />Share</button><Link href={`/report/${encodeURIComponent(slug)}`}><Icon name="flag" size={17} />Report</Link></div>;
+  return <div className="detail-actions"><button type="button" onClick={toggleSaved} className={saved ? "is-saved" : ""} aria-pressed={saved}><Icon name="bookmark" size={17} />{saved ? "Saved" : "Save"}</button><button type="button" onClick={share}><Icon name="share" size={17} />{shareLabel}</button><Link href={`/report/${encodeURIComponent(slug)}`}><Icon name="flag" size={17} />Report</Link></div>;
 }
