@@ -18,7 +18,7 @@ function accentForSlug(slug:string):Community["accent"]{const value=[...slug].re
 function initialsForName(name:string){return name.split(/\s+/).filter(Boolean).slice(0,2).join("\n").toUpperCase();}
 function membersLabel(memberCount:number|null){return memberCount===null?"Member count unavailable":`${memberCount.toLocaleString("en-IN")} members`;}
 function listingAgeLabel(createdAt:string){const days=Math.max(0,Math.floor((Date.now()-new Date(createdAt).getTime())/86400000));if(days<1)return "Listed today";if(days<30)return `Listed ${days}d ago`;const months=Math.floor(days/30.44);if(months<12)return `Listed ${months}mo ago`;return `Listed ${Math.floor(months/12)}y ago`;}
-function healthLabel(community:CommunityRow){if(community.health_status==="healthy")return "Active · checked recently";if(community.health_status==="needs_recheck")return "Needs recheck";if(community.health_status==="inactive"||community.verification_status==="broken")return "Inactive";if(community.join_enabled===false)return "Join temporarily unavailable";return "Active listing";}
+function healthLabel(community:CommunityRow){if(community.health_status==="healthy")return "Active · checked recently";if(community.health_status==="needs_recheck")return "Needs recheck";if(community.health_status==="inactive"||community.verification_status==="broken")return "Inactive";if(community.join_enabled===false)return "Join temporarily unavailable";return "Health not checked";}
 
 const getCommunityCategories=unstable_cache(
   async(communityId:string)=>{
@@ -57,7 +57,7 @@ function buildPresentation(community:CommunityRow,categoryNames:string[],imageUr
   const primaryCategory=categoryNames[0]??"Community";
   const accent=accentForSlug(community.slug);
   const tags=[...categoryNames,platformLabel,community.language,community.region].filter((tag):tag is string=>Boolean(tag));
-  return{slug:community.slug,name:community.name,category:primaryCategory,location:community.region??"Location unavailable",membersLabel:membersLabel(community.member_count??memberCountOverride),description:community.description,accent,initials:initialsForName(community.name),tags,isDemo:false,imageUrl:imageUrl??fallbackImageDataUrl(community.name,accent),listingAgeLabel:listingAgeLabel(community.created_at),healthLabel:healthLabel(community),verificationStatus:community.verification_status,platform};
+  return{slug:community.slug,name:community.name,category:primaryCategory,location:community.region??"Location unavailable",membersLabel:membersLabel(community.member_count??memberCountOverride),description:community.description,accent,initials:initialsForName(community.name),tags,isDemo:false,imageUrl:imageUrl??fallbackImageDataUrl(community.name,accent),listingAgeLabel:listingAgeLabel(community.created_at),healthLabel:healthLabel(community),healthStatus:(community.health_status??"unknown") as Community["healthStatus"],verificationStatus:community.verification_status,platform};
 }
 
 export async function toCommunityPresentation(community:CommunityRow):Promise<Community>{
