@@ -44,6 +44,7 @@ export async function getPublishedCommunityImageUrl(path: string | null) {
   // the live invite resolver and obtain the actual group image instead.
   if (size > 0 && size < MIN_USABLE_IMAGE_BYTES) return null;
 
-  const { data, error } = await supabase.storage.from(COMMUNITY_IMAGE_BUCKET).createSignedUrl(path, 60 * 60);
-  return error ? null : data.signedUrl;
+  // Published community media is intentionally public. Use one stable asset URL so the CDN/browser can reuse the cached object instead of creating a new signed URL (and cache key) on every server render.
+  const { data } = supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl || null;
 }
