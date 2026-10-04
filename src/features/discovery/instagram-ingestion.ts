@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
 import { extractInstagramDiscoveries } from "@/features/discovery/instagram-extractor";
-import { detectCountry } from "@/lib/countries";
+import { COUNTRIES, detectCountry } from "@/lib/countries";
 
 const REDDIT_SUBREDDITS = ["InstagramFriends","OnlineFriend","MakeNewFriendsHere","friendship","Needafriend","IndianTeenagers","TeenIndia","Delhi_teens","MSRITians","NHCEBengaluru","NiTNarula","India","college","anime","gaming","music","books","Travel","Cricket","soccer"] as const;
 const SEARCH_QUERIES = [
@@ -23,6 +23,14 @@ const SOURCE_SEEDS = [
   {type:"website" as const,url:"https://luma.com/4ccc6dj2"},
 ] as const;
 type SourceType=(typeof SOURCE_SEEDS)[number]["type"];
+
+function rotatingCountrySeeds(){
+  const day=Math.floor(Date.now()/86400000);
+  const batchSize=5;
+  const start=(day*batchSize)%COUNTRIES.length;
+  const batch=Array.from({length:batchSize},(_,offset)=>COUNTRIES[(start+offset)%COUNTRIES.length]);
+  return batch.map((country)=>({type:"bing" as const,url:`https://www.bing.com/search?q=${encodeURIComponent('"ig.me/j/" "instagram group chat" "'+country.name+'"')}&count=50`}));
+}
 
 function slugify(value:string){return value.toLowerCase().normalize("NFKD").replace(/[^\p{Letter}\p{Number}]+/gu,"-").replace(/^-+|-+$/g,"").slice(0,70)||"instagram-community";}
 async function uniqueSlug(admin:any,base:string){const slug=slugify(base);const{data}=await admin.from("communities").select("slug").ilike("slug",`${slug}%`).limit(100);const used=new Set((data??[]).map((x:any)=>x.slug));if(!used.has(slug))return slug;for(let i=2;i<1000;i++){const next=`${slug}-${i}`;if(!used.has(next))return next;}return `${slug}-${Date.now().toString(36)}`;}
@@ -69,7 +77,7 @@ async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any)
 
 export async function runInstagramDiscovery(limit=100){
   const admin=createAdminSupabaseClient() as any;let fetched=0,found=0,published=0,duplicates=0,inactive=0,failed=0;
-  const startIndex=Math.floor(Date.now()/(1000*60*60*24))%SOURCE_SEEDS.length;const seeds=[...SOURCE_SEEDS.slice(startIndex),...SOURCE_SEEDS.slice(0,startIndex)];
+  const seeds=[...rotatingCountrySeeds(), ...SOURCE_SEEDS];
   for(const seed of seeds){if(found>=limit)break;try{const html=await fetchSource(seed.url);const discoveries=extractInstagramDiscoveries(html);fetched++;for(const d of discoveries){if(found>=limit)break;found++;const result=await ingestOne(admin,seed.url,seed.type,d);if(result.status==="published")published++;else if(result.status==="duplicate"||result.status==="existing")duplicates++;else if(result.status==="inactive")inactive++;else if(result.status==="failed")failed++;}await admin.from("discovery_sources").upsert({source_type:seed.type,source_url:seed.url,raw_url:seed.url,normalized_url:seed.url.replace(/[?#].*$/g,"").replace(/\/$/g,"").toLowerCase(),platform:"instagram",extraction_status:"processed",metadata:{last_scan_count:discoveries.length}},{onConflict:"normalized_url"});}catch(error){await admin.from("discovery_sources").upsert({source_type:seed.type,source_url:seed.url,raw_url:seed.url,normalized_url:seed.url.replace(/[?#].*$/g,"").replace(/\/$/g,"").toLowerCase(),platform:"instagram",extraction_status:"failed",health_status:"needs_recheck",health_error:error instanceof Error?error.message:"Source fetch failed",metadata:{last_scan_failed:true}},{onConflict:"normalized_url"});failed++;}}
   return{fetchedSources:fetched,found,published,duplicates,inactive,failed};
 }
