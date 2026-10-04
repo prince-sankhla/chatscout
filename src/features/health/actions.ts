@@ -54,7 +54,7 @@ export async function checkCommunityHealthNow(formData: FormData) {
 
   // Keep manual checks on the exact same rendered resolver used by the submit form.
   const preview = await resolveRenderedCommunityPreview(community.invite_url);
-  const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+  const hasSignal = preview.status === "healthy" && Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
   const now = new Date().toISOString();
 
   if (preview.status === "inactive") {
