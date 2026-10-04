@@ -23,3 +23,10 @@ where country_code is null
       'lucknow','indore','kota','chandigarh','noida','gurgaon','gurugram'
     )
   );
+
+alter table public.submissions
+  add column if not exists country_code text,
+  add column if not exists country_name text;
+
+create index if not exists submissions_country_idx
+  on public.submissions(country_code, status);
