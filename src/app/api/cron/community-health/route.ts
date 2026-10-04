@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const admin = createAdminSupabaseClient();
   const { data: communities, error } = await admin.from("communities")
-    .select("id,slug,name,invite_url,platform,owner_user_id,member_count,health_status,health_failure_count,last_remote_name,last_remote_member_count,external_image_url,last_remote_image_checked_at,tags")
+    .select("id,slug,name,invite_url,platform,owner_user_id,member_count,health_status,health_failure_count,last_remote_name,last_remote_member_count,external_image_url,last_remote_image_checked_at,tags,standalone_inventory")
     .eq("status", "published").eq("auto_monitor_enabled", true)
     .order("health_last_checked_at", { ascending: true, nullsFirst: true }).limit(BATCH_LIMIT);
   if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
@@ -63,6 +63,7 @@ export async function GET(request: Request) {
 
       const now = new Date().toISOString();
       const update: CommunityUpdate = { health_status: "healthy", health_last_checked_at: now, health_failure_count: 0, last_health_error: null, last_remote_name: preview.name ?? community.last_remote_name, last_remote_member_count: preview.memberCount ?? community.last_remote_member_count, last_remote_image_checked_at: preview.imageUrl ? now : community.last_remote_image_checked_at, ...(preview.imageUrl ? { external_image_url: preview.imageUrl } : {}) };
+      if (community.standalone_inventory) update.join_enabled = true;
       const pieces: string[] = [];
       let changed = false;
       if (preview.name && preview.name !== community.name && preview.name === community.last_remote_name) { update.name = preview.name; changed = true; pieces.push(`name changed to “${preview.name}”`); }
