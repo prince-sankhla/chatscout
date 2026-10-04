@@ -100,6 +100,7 @@ function revalidateCommunity(slug: string | null | undefined) {
     revalidatePath(`/join/${slug}`);
   }
   revalidatePath("/admin");
+  revalidatePath("/admin/quality");
 }
 
 async function upsertCategoryLink(communityId: string, categoryName: string) {

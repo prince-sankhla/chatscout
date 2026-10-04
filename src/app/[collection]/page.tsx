@@ -26,7 +26,8 @@ async function getIndexableOpportunities(collection: DemandCollection) {
   const opportunities = DEMAND_OPPORTUNITIES.filter((item) => item.routeCollection === collection);
   const loaded = await Promise.all(opportunities.map(async (item) => {
     const result = await getPublishedCommunities({ categorySlug: item.categorySlug, platform: item.platform, sort: "members" });
-    return result.error || result.data.length < MIN_INDEXABLE_LISTINGS ? null : item;
+    const indexable = result.data.filter((community) => community.quality_grade === "good");
+    return result.error || indexable.length < MIN_INDEXABLE_LISTINGS ? null : item;
   }));
   return loaded.filter((item): item is (typeof opportunities)[number] => Boolean(item));
 }
@@ -35,6 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const collection = (await params).collection as DemandCollection;
   if (!COLLECTION_LABELS[collection]) return { title: "Not found | ChatScout", robots: { index: false, follow: true } };
   const label = COLLECTION_LABELS[collection];
+  const opportunities = await getIndexableOpportunities(collection);
+  const indexable = opportunities.length > 0;
   const title = "Explore " + label + " | ChatScout";
   const description = "Browse focused " + label.toLowerCase() + " on ChatScout from real community listings.";
   const canonical = SITE_URL + "/" + collection;
@@ -43,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical },
-    robots: { index: true, follow: true },
+    robots: { index: indexable, follow: true },
     openGraph: { type: "website", url: canonical, title, description, siteName: "ChatScout", images: [{ url: SITE_URL + "/brand/chatscout-logo.png", width: 1254, height: 1254, alt: "ChatScout" }] },
     twitter: { card: "summary_large_image", title, description, images: [SITE_URL + "/brand/chatscout-logo.png"] },
   };

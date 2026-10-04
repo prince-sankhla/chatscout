@@ -20,12 +20,18 @@ export type ControllerOverview = {
   recentViews: number;
   recentJoinClicks: number;
   recentCtr: number;
+  qualityCritical: number;
+  qualityNeedsReview: number;
+  qualityGeneric: number;
+  qualityGood: number;
+  qualityUnscored: number;
+  qualityOutstanding: number;
 };
 
 export async function getControllerOverview(): Promise<ControllerOverview | null> {
   const supabase = createAdminSupabaseClient();
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const [communities, published, pending, rejectedOrChanges, archived, owners, openReports, verificationNeedsReview, verificationUnverified, healthy, healthNeedsRecheck, healthInactive, healthUnknown, recentViews, recentJoinClicks] = await Promise.all([
+  const [communities, published, pending, rejectedOrChanges, archived, owners, openReports, verificationNeedsReview, verificationUnverified, healthy, healthNeedsRecheck, healthInactive, healthUnknown, qualityCritical, qualityNeedsReview, qualityGeneric, qualityGood, qualityUnscored, qualityOutstanding, recentViews, recentJoinClicks] = await Promise.all([
     supabase.from("communities").select("id", { count: "exact", head: true }),
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published"),
     supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -39,10 +45,16 @@ export async function getControllerOverview(): Promise<ControllerOverview | null
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("health_status", "needs_recheck"),
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("health_status", "inactive"),
     supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("health_status", "unknown"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("quality_grade", "critical"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("quality_grade", "needs_review"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("quality_grade", "generic"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").eq("quality_grade", "good"),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").is("quality_grade", null),
+    supabase.from("communities").select("id", { count: "exact", head: true }).eq("status", "published").in("quality_grade", ["critical", "needs_review", "generic"]).is("quality_reviewed_at", null),
     supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "community_view").gte("occurred_at", since),
     supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "join_click").gte("occurred_at", since),
   ]);
-  if (communities.error || published.error || pending.error || rejectedOrChanges.error || archived.error || owners.error || openReports.error || verificationNeedsReview.error || verificationUnverified.error || healthy.error || healthNeedsRecheck.error || healthInactive.error || healthUnknown.error || recentViews.error || recentJoinClicks.error) return null;
+  if (communities.error || published.error || pending.error || rejectedOrChanges.error || archived.error || owners.error || openReports.error || verificationNeedsReview.error || verificationUnverified.error || healthy.error || healthNeedsRecheck.error || healthInactive.error || healthUnknown.error || qualityCritical.error || qualityNeedsReview.error || qualityGeneric.error || qualityGood.error || qualityUnscored.error || qualityOutstanding.error || recentViews.error || recentJoinClicks.error) return null;
   const ownerIds = new Set((owners.data ?? []).map((row) => row.owner_user_id).filter((id): id is string => Boolean(id)));
   const recentViewCount = recentViews.count ?? 0;
   const recentJoinCount = recentJoinClicks.count ?? 0;
@@ -66,5 +78,11 @@ export async function getControllerOverview(): Promise<ControllerOverview | null
     recentViews: recentViewCount,
     recentJoinClicks: recentJoinCount,
     recentCtr: recentViewCount ? Math.round((recentJoinCount / recentViewCount) * 1000) / 10 : 0,
+    qualityCritical: qualityCritical.count ?? 0,
+    qualityNeedsReview: qualityNeedsReview.count ?? 0,
+    qualityGeneric: qualityGeneric.count ?? 0,
+    qualityGood: qualityGood.count ?? 0,
+    qualityUnscored: qualityUnscored.count ?? 0,
+    qualityOutstanding: qualityOutstanding.count ?? 0,
   };
 }

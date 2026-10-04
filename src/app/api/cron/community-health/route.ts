@@ -7,11 +7,10 @@ import type { AdminAuditAction, Database } from "@/types/database";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const FAILURE_THRESHOLD = 3;
 const BATCH_LIMIT = 150;
 const CONCURRENCY = 8;
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
-type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
+type HealthAuditAction = Extract<AdminAuditAction, "health_updated">;
 
 function authorized(request: Request) { const secret = process.env.CRON_SECRET?.trim(); return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`); }
 function appUrl() { return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? null; }
@@ -44,16 +43,21 @@ export async function GET(request: Request) {
     const checked = await Promise.all(ordered.slice(i, i + CONCURRENCY).map(checkOne));
     for (const { community, preview, error: previewError } of checked) {
       results.checked += 1;
-      const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+      const hasSignal = preview.status === "healthy" && Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
       if (!hasSignal) {
         results.failed += 1;
         const failures = (community.health_failure_count ?? 0) + 1;
         const now = new Date().toISOString();
-        const shouldArchive = failures >= FAILURE_THRESHOLD;
-        const { error: updateError } = await admin.from("communities").update({ health_status: shouldArchive ? "inactive" : "needs_recheck", health_last_checked_at: now, health_failure_count: failures, last_health_error: previewError ?? "Community invite could not be verified publicly.", ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}) }).eq("id", community.id);
-        if (updateError) { results.dbErrors += 1; continue; }
-        await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
-        if (shouldArchive) results.archived += 1;
+        if (preview.status === "inactive") {
+          const { error: updateError } = await admin.from("communities").update({ health_status: "inactive", health_last_checked_at: now, health_failure_count: 0, join_enabled: false, last_health_error: "Public invite returned explicit inactive/invalid evidence." }).eq("id", community.id);
+          if (updateError) { results.dbErrors += 1; continue; }
+          await audit(community.id, "health_updated", "Marked inactive only after explicit public invite evidence; the listing was not deleted or archived.");
+          await notifyHealthChange(community, ["invite returned explicit inactive/invalid evidence; joining was disabled"]);
+        } else {
+          const { error: updateError } = await admin.from("communities").update({ health_status: "needs_recheck", health_last_checked_at: now, health_failure_count: Math.min(failures, 99), last_health_error: previewError ?? "Community invite could not be verified publicly." }).eq("id", community.id);
+          if (updateError) { results.dbErrors += 1; continue; }
+          await audit(community.id, "health_updated", `Health check was inconclusive (${Math.min(failures, 99)} consecutive failure${failures === 1 ? "" : "s"}); no archive/delete action was taken.`);
+        }
         continue;
       }
 

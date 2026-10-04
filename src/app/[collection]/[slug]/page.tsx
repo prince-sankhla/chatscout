@@ -29,7 +29,7 @@ async function loadOpportunity(collection: string, slug: string) {
   if (!opportunity) return null;
   const result = await getPublishedCommunities({ categorySlug: opportunity.categorySlug, platform: opportunity.platform, sort: "members" });
   if (result.error) return { opportunity, communities: [] };
-  return { opportunity, communities: result.data };
+  return { opportunity, communities: result.data.filter((community) => community.quality_grade === "good") };
 }
 
 function categoryLabel(slug: string) {
