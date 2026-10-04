@@ -1,3 +1,4 @@
+import { detectCountry } from "@/lib/countries";
 export type InstagramDiscovery = {
   rawUrl:string;
   normalizedUrl:string;
@@ -7,6 +8,8 @@ export type InstagramDiscovery = {
   category:string|null;
   language:string|null;
   region:string|null;
+  countryCode:string|null;
+  countryName:string|null;
 };
 
 const JOIN_RE=/https?:\/\/(?:www\.)?ig\.me\/(?:j|channel)\/[A-Za-z0-9_-]+(?:\/)?/gi;
@@ -41,7 +44,8 @@ export function extractInstagramDiscoveries(html:string):InstagramDiscovery[]{
     const idx=match.index??0;const ctx=context(html,idx);const title=pageTitle(html);const description=meta(html,"description");const combined=[title,description,ctx].filter(Boolean).join(" ");
     if(BLOCKED_RE.test(combined))continue;
     const name=clean(ctx.split(/[.!?\\n]/).map(x=>x.trim()).find(x=>x.length>=8&&x.length<=120)??title??"");
-    out.set(normalized,{rawUrl:match[0],normalizedUrl:normalized,title,description,name,category:classify(combined),language:detectLanguage(combined),region:inferRegion(combined)});
+    const country=detectCountry(combined);
+    out.set(normalized,{rawUrl:match[0],normalizedUrl:normalized,title,description,name,category:classify(combined),language:detectLanguage(combined),region:inferRegion(combined),countryCode:country?.code??null,countryName:country?.name??null});
   }
   return [...out.values()];
 }
