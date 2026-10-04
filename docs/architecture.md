@@ -2,7 +2,7 @@
 
 ## Overview
 
-ChatScout is an India-first discovery platform for Instagram group chats. This document outlines the architectural principles, structure, and conventions for the frontend codebase.
+ChatScout is a global discovery platform for Instagram group chats. This document outlines the architectural principles, structure, and conventions for the frontend codebase.
 
 ## Product Architecture
 

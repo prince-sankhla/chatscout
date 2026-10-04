@@ -18,6 +18,7 @@ type ListingProps = {
   sort?: "newest" | "members";
   language?: string;
   region?: string;
+  country?: string;
   age?: string;
   members?: string;
   page?: number;
@@ -42,6 +43,7 @@ function pageHref(page: number, props: ListingProps) {
   if (props.sort && props.sort !== "newest") params.set("sort", props.sort);
   if (props.language) params.set("language", props.language);
   if (props.region) params.set("region", props.region);
+  if (props.country) params.set("country", props.country);
   if (props.age) params.set("age", props.age);
   if (props.members) params.set("members", props.members);
   if (page > 1) params.set("page", String(page));
@@ -57,6 +59,7 @@ export async function PlatformListing({
   sort = "newest",
   language = "",
   region = "",
+  country = "",
   age = "",
   members = "",
   page = 1,
@@ -67,10 +70,11 @@ export async function PlatformListing({
     platform: platform || undefined,
     language: language || undefined,
     region: region || undefined,
+    country: country || undefined,
     age: (age || undefined) as "any" | "everyone" | "13+" | "16+" | "18+" | undefined,
     ...bounds,
   };
-  const listingProps: ListingProps = { kind, query, category, platform, sort, language, region, age, members };
+  const listingProps: ListingProps = { kind, query, category, platform, sort, language, region, country, age, members };
   const categoryResult = await getActiveCategories();
 
   let payload: { data: unknown[]; total: number } | null = null;
@@ -111,7 +115,7 @@ export async function PlatformListing({
     : kind === "trending"
       ? "What people are discovering and joining right now."
       : `Freshly published communities across ${platformLabel}.`;
-  const activeFilterCount = [category, platform, language, region, age, members].filter(Boolean).length;
+  const activeFilterCount = [category, platform, language, region, country, age, members].filter(Boolean).length;
   const searchMetadata = kind === "search" && query
     ? {
         query,
@@ -165,6 +169,7 @@ export async function PlatformListing({
           sort={sort}
           language={language}
           region={region}
+          country={country}
           age={age}
           members={members}
           showSort={kind !== "trending"}

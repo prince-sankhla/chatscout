@@ -1,6 +1,6 @@
 # ChatScout
 
-ChatScout is an India-first **community discovery directory** for Instagram, WhatsApp, Telegram and Discord.
+ChatScout is an global **community discovery directory** for Instagram, WhatsApp, Telegram and Discord.
 
 People use ChatScout to discover communities by topic, platform, language, region, age and size, preview useful listing details, and continue to the original platform to join.
 

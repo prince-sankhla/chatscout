@@ -179,7 +179,7 @@ export async function approveSubmission(formData: FormData) {
   if (!categorySlug(category)) redirect("/admin?status=failed");
   const { data: existingCommunity, error: existingError } = await supabase
     .from("communities")
-    .select("id, slug, image_path")
+    .select("id, slug, image_path, country_code, country_name")
     .eq("invite_url", submission.invite_url)
     .limit(1)
     .maybeSingle();
@@ -195,6 +195,8 @@ export async function approveSubmission(formData: FormData) {
     restrictions: submission.restrictions,
     language: submission.language,
     region: submission.region,
+    country_code: submission.country_code ?? existingCommunity?.country_code ?? null,
+    country_name: submission.country_name ?? existingCommunity?.country_name ?? null,
     member_count: submission.approximate_member_count,
     image_path: submission.image_path ?? existingCommunity?.image_path ?? null,
     status: "published" as const,

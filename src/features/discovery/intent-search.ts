@@ -3,6 +3,7 @@ import "server-only";
 import type { CommunityPlatform, CommunityRow } from "@/types/database";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { searchPublishedCommunityPage } from "@/features/communities/published-page";
+import { detectCountry } from "@/lib/countries";
 
 export type ParsedIntent = {
   normalizedQuery: string;
@@ -11,6 +12,7 @@ export type ParsedIntent = {
   platform: CommunityPlatform | null;
   region: string | null;
   language: string | null;
+  country: string | null;
   categorySlug: string | null;
   summary: string;
 };
@@ -20,6 +22,7 @@ export type IntentSearchFilters = {
   platform?: CommunityPlatform;
   language?: string;
   region?: string;
+  country?: string;
   age?: "any" | "everyone" | "13+" | "16+" | "18+";
   minMembers?: number;
   maxMembers?: number;
@@ -109,12 +112,13 @@ export function parseSearchIntent(input: string): ParsedIntent {
   const platform = detectAlias(normalizedQuery, PLATFORM_ALIASES);
   const region = detectAlias(normalizedQuery, REGION_ALIASES);
   const language = detectAlias(normalizedQuery, LANGUAGE_ALIASES);
+  const country = detectCountry(normalizedQuery);
   const rule = INTENT_RULES
     .map((candidate) => ({ candidate, hits: candidate.terms.filter((term) => tokenSet.has(term)).length }))
     .sort((a, b) => b.hits - a.hits)[0];
   const goal = rule && rule.hits > 0 ? rule.candidate : null;
   const categorySlug = goal?.categorySlug ?? null;
-  const parts = [goal?.label ?? null, platform ? platform[0].toUpperCase() + platform.slice(1) : null, region, language].filter(Boolean);
+  const parts = [goal?.label ?? null, platform ? platform[0].toUpperCase() + platform.slice(1) : null, country?.name ?? region, language].filter(Boolean);
   return {
     normalizedQuery,
     tokens,
@@ -122,6 +126,7 @@ export function parseSearchIntent(input: string): ParsedIntent {
     platform,
     region,
     language,
+    country: country?.code ?? null,
     categorySlug,
     summary: parts.length ? parts.join(" • ") : "Keyword search",
   };
@@ -156,6 +161,7 @@ function scoreCommunity(community: CommunityRow, tokens: string[], parsed: Parse
   if (parsed.platform && community.platform === parsed.platform) score += 5;
   if (parsed.region && region.includes(parsed.region.toLowerCase())) score += 9;
   if (parsed.language && language.includes(parsed.language.toLowerCase())) score += 4;
+  if (parsed.country && (community.country_code ?? "").toUpperCase() === parsed.country.toUpperCase()) score += 10;
   if (categoryId && categoryIds.has(community.id)) score += 11;
   if (community.verification_status === "verified") score += 2;
   if (community.health_status === "healthy") score += 1;
@@ -180,6 +186,7 @@ export async function searchPublishedCommunitiesByIntent(
   const effectivePlatform = filters.platform ?? parsed.platform ?? undefined;
   const effectiveRegion = filters.region && filters.region !== "any" ? filters.region : parsed.region ?? undefined;
   const effectiveLanguage = filters.language && filters.language !== "any" ? filters.language : parsed.language ?? undefined;
+  const effectiveCountry = filters.country && filters.country !== "any" ? filters.country.trim().toUpperCase() : parsed.country ?? undefined;
   const effectiveCategory = filters.categorySlug ?? parsed.categorySlug ?? undefined;
   const supabase = createServerSupabaseClient();
 
@@ -202,6 +209,7 @@ export async function searchPublishedCommunitiesByIntent(
   if (effectivePlatform) query = query.eq("platform", effectivePlatform);
   if (effectiveLanguage) query = query.ilike("language", `%${effectiveLanguage.trim()}%`);
   if (effectiveRegion) query = query.ilike("region", `%${effectiveRegion.trim()}%`);
+  if (effectiveCountry) query = query.eq("country_code", effectiveCountry);
   if (filters.minMembers !== undefined) query = query.gte("member_count", filters.minMembers);
   if (filters.maxMembers !== undefined) query = query.lte("member_count", filters.maxMembers);
   if (filters.age && filters.age !== "any") {

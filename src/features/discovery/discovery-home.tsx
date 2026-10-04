@@ -49,7 +49,7 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
         <div className="neon-main">
           <section className="neon-hero">
             <div className="neon-copy">
-              <p className="eyebrow">INDIA'S COMMUNITY DISCOVERY DIRECTORY</p>
+              <p className="eyebrow">GLOBAL COMMUNITY DISCOVERY DIRECTORY</p>
               <h1><RotatingHeroHeadline /></h1>
               <p>Discover communities across Instagram, WhatsApp, Telegram and Discord by interest, language, and location.</p>
               <SearchForm query={searchTerm} />

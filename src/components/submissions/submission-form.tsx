@@ -3,6 +3,7 @@
 
 import { useRef, useState } from "react";
 import { submitCommunity } from "@/features/submissions/actions";
+import { COUNTRIES } from "@/lib/countries";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -23,6 +24,7 @@ type Preview = { name?: string | null; memberCount?: number | null; imageUrl?: s
 
 function errorMessage(error?: string) {
   if (error === "required") return "Complete the required listing details.";
+  if (error === "country") return "Choose a valid country or leave it as worldwide.";
   if (error === "url") return "Enter a valid HTTPS community invite URL for the selected platform.";
   if (error === "members") return "Enter a whole member count of zero or more.";
   if (error === "image") return "Upload a valid JPG, PNG, or WebP image before submitting.";
@@ -163,7 +165,7 @@ export function SubmissionForm({ error }: { error?: string }) {
     <fieldset>
       <legend>Community details</legend>
       <p>Choose the closest match. You can use multilingual for mixed-language communities.</p>
-      <div className="form-row"><label>Language <b>*</b><select name="language" required defaultValue=""><option value="" disabled>Select a language</option>{LANGUAGES.map((language) => <option key={language}>{language}</option>)}</select></label><label>Region<input name="region" maxLength={120} placeholder="e.g. Jaipur, Rajasthan" /></label></div>
+      <div className="form-row"><label>Language <b>*</b><select name="language" required defaultValue=""><option value="" disabled>Select a language</option>{LANGUAGES.map((language) => <option key={language}>{language}</option>)}</select></label><label>Country<select name="countryCode" defaultValue=""><option value="">Worldwide / not specific</option>{COUNTRIES.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}</select></label></div><div className="form-row"><label>Region<input name="region" maxLength={120} placeholder="e.g. Jaipur, Rajasthan" /></label></div>
       <label>Approx. member count<input name="memberCount" type="number" min="0" step="1" value={memberCount} onChange={(event) => setMemberCount(event.target.value)} placeholder="Enter current member count" /></label>
     </fieldset>
 

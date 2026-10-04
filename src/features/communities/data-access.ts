@@ -10,7 +10,7 @@ export type CommunityQueryResult<T> =
 export type CommunitySort = "newest" | "members";
 export type CommunityPlatform = "instagram" | "whatsapp" | "telegram" | "discord";
 export type AgeFilter = "any" | "everyone" | "13+" | "16+" | "18+";
-export type PublishedCommunityFilters = { categorySlug?: string; platform?: CommunityPlatform; sort?: CommunitySort; language?: string; region?: string; age?: AgeFilter; minMembers?: number; maxMembers?: number };
+export type PublishedCommunityFilters = { categorySlug?: string; platform?: CommunityPlatform; sort?: CommunitySort; language?: string; region?: string; country?: string; age?: AgeFilter; minMembers?: number; maxMembers?: number };
 export type CommunityTaxonomy = { id: string; slug: string; name: string };
 const MAX_SEARCH_RESULTS = 50;
 const DISCOVERY_FETCH_LIMIT = 200;
@@ -21,10 +21,11 @@ function normalizeSearchTerm(term: string) { return term.trim().replace(/[%_(),.
 function queryFailure<T>(error: PostgrestError, message: string): CommunityQueryResult<T> { void error; return { data: null, error: { code: "COMMUNITY_QUERY_FAILED", message } }; }
 function orderColumn(sort: CommunitySort = "newest") { return sort === "members" ? "member_count" : "published_at"; }
 function applyDiscoveryFilters(communities: CommunityRow[], filters: PublishedCommunityFilters) {
-  const language = filters.language?.trim().toLowerCase(), region = filters.region?.trim().toLowerCase(), age = filters.age ?? "any";
+  const language = filters.language?.trim().toLowerCase(), region = filters.region?.trim().toLowerCase(), country = filters.country?.trim().toUpperCase(), age = filters.age ?? "any";
   return communities.filter((community) => {
     if (language && language !== "any" && !(community.language ?? "").toLowerCase().includes(language)) return false;
     if (region && region !== "any" && !(community.region ?? "").toLowerCase().includes(region)) return false;
+    if (country && country !== "ANY" && (community.country_code ?? "").toUpperCase() !== country) return false;
     const members = community.member_count ?? -1;
     if (filters.minMembers !== undefined && (members < filters.minMembers || members < 0)) return false;
     if (filters.maxMembers !== undefined && (members < 0 || members > filters.maxMembers)) return false;

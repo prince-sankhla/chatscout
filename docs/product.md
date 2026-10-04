@@ -2,7 +2,7 @@
 
 ## Overview
 
-ChatScout is an India-first **multi-platform community discovery directory**.
+ChatScout is an global **multi-platform community discovery directory**.
 
 The platform helps people discover and evaluate public community listings across Instagram, WhatsApp, Telegram and Discord. Visitors can search by topic and intent, filter by platform and useful community attributes, preview listing context, and continue to the original platform to join.
 
@@ -13,7 +13,7 @@ The platform helps people discover and evaluate public community listings across
 - Intent-aware community search
 - Platform filtering
 - Category and subcategory browsing
-- Language and region filtering
+- Language, country and region filtering
 - Age and member-size filtering
 - New and trending discovery
 - Related-community recommendations
@@ -26,7 +26,7 @@ Community pages can show:
 - Platform
 - Member count
 - Categories and tags
-- Language and region
+- Language, country and region
 - Trust and freshness signals
 - Community rules, eligibility and restrictions when supplied
 - Join CTA to the original platform
