@@ -24,7 +24,8 @@ type Preview = { name?: string | null; memberCount?: number | null; imageUrl?: s
 
 function errorMessage(error?: string) {
   if (error === "required") return "Complete the required listing details.";
-  if (error === "country") return "Choose a valid country or leave it as worldwide.";\n  if (error === "url") return "Enter a valid HTTPS community invite URL for the selected platform.";
+  if (error === "country") return "Choose a valid country or leave it as worldwide.";
+  if (error === "url") return "Enter a valid HTTPS community invite URL for the selected platform.";
   if (error === "members") return "Enter a whole member count of zero or more.";
   if (error === "image") return "Upload a valid JPG, PNG, or WebP image before submitting.";
   if (error === "database") return "We couldn't save your submission right now. Please try again shortly.";
