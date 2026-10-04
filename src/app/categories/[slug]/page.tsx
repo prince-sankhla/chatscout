@@ -17,7 +17,7 @@ async function loadCategory(slug: string) {
   const children = await getActiveChildren(category.id);
   if (children.length) return { category, children, communities: [] };
   const result = await getPublishedCommunities({ categorySlug: slug, sort: "newest" });
-  return { category, children: [], communities: result.data ?? [] };
+  return { category, children: [], communities: (result.data ?? []).filter((community) => community.quality_grade === "good") };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -26,11 +26,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { category, children, communities } = data;
   const description = category.description ?? `Discover ${category.name.toLowerCase()} group chats on ChatScout.`;
   const hasListings = communities.length > 0;
+  const indexableListings = communities.filter((community) => community.quality_grade === "good").length >= 3;
   return {
     title: `${category.name} Group Chats | ChatScout`,
     description,
     alternates: { canonical: `/categories/${category.slug}` },
-    robots: children.length > 0 || hasListings ? { index: true, follow: true } : { index: false, follow: true },
+    robots: children.length > 0 || indexableListings ? { index: true, follow: true } : { index: false, follow: true },
     openGraph: { title: `${category.name} Group Chats | ChatScout`, description, url: `/categories/${category.slug}`, type: "website", images: [{ url: "/brand/chatscout-logo.png", width: 1254, height: 1254, alt: "ChatScout" }] },
   };
 }
