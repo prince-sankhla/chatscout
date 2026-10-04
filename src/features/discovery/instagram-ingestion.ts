@@ -11,10 +11,10 @@ const REDDIT_SUBREDDITS = [
 
 const SOURCE_SEEDS = [
   ...REDDIT_SUBREDDITS.map((subreddit) => ({
-    type: "reddit-json" as const,
+    type: "reddit" as const,
     url: `https://www.reddit.com/r/${subreddit}/search.json?q=ig.me%2Fj&restrict_sr=1&sort=new&t=year&limit=100`,
   })),
-  { type: "reddit-json" as const, url: "https://www.reddit.com/search.json?q=%22ig.me%2Fj%2F%22&sort=new&t=year&limit=100" },
+  { type: "reddit" as const, url: "https://www.reddit.com/search.json?q=%22ig.me%2Fj%2F%22&sort=new&t=year&limit=100" },
   { type: "website" as const, url: "https://sop.utoronto.ca/group/u-of-t-rubiks-cube-club-utrcc/" },
   { type: "website" as const, url: "https://bookclubs.com/join-a-book-club/club/psst-psst" },
   { type: "website" as const, url: "https://www.meetup.com/tokyo-electronic-music-production-meetup-group/" },
