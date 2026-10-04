@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const FAILURE_THRESHOLD = 3;
-const BATCH_LIMIT = 100;
+const BATCH_LIMIT = 150;
 const CONCURRENCY = 8;
 type CommunityUpdate = Database["public"]["Tables"]["communities"]["Update"];
 type HealthAuditAction = Extract<AdminAuditAction, "health_updated" | "auto_archived">;
@@ -30,24 +30,28 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: "Unable to load communities for health check." }, { status: 500 });
 
   const ordered = [...(communities ?? [])].sort((a, b) => {
-    const aPhase1 = a.platform === "whatsapp" && Array.isArray(a.tags) && a.tags.includes("phase1");
-    const bPhase1 = b.platform === "whatsapp" && Array.isArray(b.tags) && b.tags.includes("phase1");
-    return Number(bPhase1) - Number(aPhase1);
+    const priority = (c: any) => {
+      const unknown = !c.health_last_checked_at || c.health_status === "unknown";
+      if (unknown && c.platform === "whatsapp") return 0;
+      if (unknown) return 1;
+      return 2;
+    };
+    return priority(a) - priority(b);
   });
-  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, images: 0, memberCounts: 0, phase1Checked: 0 };
+  const results = { checked: 0, healthy: 0, changed: 0, recovered: 0, archived: 0, failed: 0, images: 0, memberCounts: 0, dbErrors: 0 };
 
   for (let i = 0; i < ordered.length; i += CONCURRENCY) {
     const checked = await Promise.all(ordered.slice(i, i + CONCURRENCY).map(checkOne));
     for (const { community, preview, error: previewError } of checked) {
       results.checked += 1;
-      if (community.platform === "whatsapp" && Array.isArray(community.tags) && community.tags.includes("phase1")) results.phase1Checked += 1;
       const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
       if (!hasSignal) {
         results.failed += 1;
         const failures = (community.health_failure_count ?? 0) + 1;
         const now = new Date().toISOString();
         const shouldArchive = failures >= FAILURE_THRESHOLD;
-        await admin.from("communities").update({ health_status: shouldArchive ? "inactive" : "needs_recheck", health_last_checked_at: now, health_failure_count: failures, last_health_error: previewError ?? "Community invite could not be verified publicly.", ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}) }).eq("id", community.id);
+        const { error: updateError } = await admin.from("communities").update({ health_status: shouldArchive ? "inactive" : "needs_recheck", health_last_checked_at: now, health_failure_count: failures, last_health_error: previewError ?? "Community invite could not be verified publicly.", ...(shouldArchive ? { status: "archived", archived_at: now, archived_by: process.env.ADMIN_USER_ID ?? null, published_at: null } : {}) }).eq("id", community.id);
+        if (updateError) { results.dbErrors += 1; continue; }
         await audit(community.id, shouldArchive ? "auto_archived" : "health_updated", shouldArchive ? "Archived after three consecutive failed public invite checks." : `Health check failed (${failures}/${FAILURE_THRESHOLD}).`);
         if (shouldArchive) results.archived += 1;
         continue;
@@ -62,12 +66,13 @@ export async function GET(request: Request) {
       else if (typeof preview.memberCount === "number" && preview.memberCount !== community.member_count && preview.memberCount === community.last_remote_member_count) { update.member_count = preview.memberCount; changed = true; results.memberCounts += 1; pieces.push(`member count updated to ${preview.memberCount.toLocaleString("en-IN")}`); }
       if (preview.imageUrl && preview.imageUrl !== community.external_image_url) { changed = true; results.images += 1; pieces.push("group image metadata refreshed"); }
       const wasUnhealthy = community.health_status !== "healthy";
-      await admin.from("communities").update(update).eq("id", community.id);
+      const { error: updateError } = await admin.from("communities").update(update).eq("id", community.id);
+      if (updateError) { results.dbErrors += 1; continue; }
       if (changed) results.changed += 1;
       if (wasUnhealthy) results.recovered += 1;
       if (changed || wasUnhealthy) { await audit(community.id, "health_updated", "Automatic public-preview metadata/health check applied."); await notifyHealthChange(community, pieces.concat(wasUnhealthy ? ["invite link is responding again"] : [])); }
       else results.healthy += 1;
     }
   }
-  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), ...results });
+  return NextResponse.json({ ok: results.dbErrors === 0, checkedAt: new Date().toISOString(), ...results });
 }
