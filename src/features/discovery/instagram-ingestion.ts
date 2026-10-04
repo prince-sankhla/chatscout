@@ -26,7 +26,7 @@ type SourceType=(typeof SOURCE_SEEDS)[number]["type"];
 
 function rotatingCountrySeeds(){
   const day=Math.floor(Date.now()/86400000);
-  const batchSize=5;
+  const batchSize=3;
   const start=(day*batchSize)%COUNTRIES.length;
   const batch=Array.from({length:batchSize},(_,offset)=>COUNTRIES[(start+offset)%COUNTRIES.length]);
   return batch.map((country)=>({type:"bing" as const,url:`https://www.bing.com/search?q=${encodeURIComponent('"ig.me/j/" "instagram group chat" "'+country.name+'"')}&count=50`}));
@@ -64,7 +64,7 @@ async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any)
   const name=safeName(preview.name??d.name,`${d.category??"Instagram"} Group Chat`);
   const slug=await uniqueSlug(admin,name);
   const description=safeDescription(d.description??d.title,sourceUrl);
-  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,country_code:country?.code??null,country_name:country?.name??null,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:d.region&&/^india$/i.test(d.region)?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
+  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,country_code:country?.code??null,country_name:country?.name??null,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:country?.code==="IN"?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
   const{data:community,error}=await admin.from("communities").insert(insert).select("id").single();
   if(error){await admin.from("discovery_sources").update({extraction_status:"failed",health_status:health,health_error:error.message}).eq("id",source.id);return{status:"failed",error:error.message};}
   const cid=await categoryId(admin,d.category);if(cid)await admin.from("community_categories").insert({community_id:community.id,category_id:cid});
