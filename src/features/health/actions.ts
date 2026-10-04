@@ -54,8 +54,15 @@ export async function checkCommunityHealthNow(formData: FormData) {
 
   // Keep manual checks on the exact same rendered resolver used by the submit form.
   const preview = await resolveRenderedCommunityPreview(community.invite_url);
-  const hasSignal = Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
+  const hasSignal = preview.status === "healthy" && Boolean(preview.name || preview.memberCount !== null || preview.imageUrl);
   const now = new Date().toISOString();
+
+  if (preview.status === "inactive") {
+    await admin.from("communities").update({ health_status: "inactive", health_last_checked_at: now, health_failure_count: 0, join_enabled: false, last_health_error: "The public invite returned explicit inactive/invalid evidence." } satisfies CommunityUpdate).eq("id", communityId);
+    await audit(communityId, `Manual health check found explicit inactive evidence for ${community.name}.`);
+    await notifyOwner(community.owner_user_id, community.name, "The public invite returned explicit inactive or invalid evidence. The listing remains in ChatScout, but joining has been temporarily disabled.");
+    redirect("/admin/health?status=inactive");
+  }
 
   if (!hasSignal) {
     const failureCount = (community.health_failure_count ?? 0) + 1;

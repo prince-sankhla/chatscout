@@ -13,6 +13,7 @@ const nav = [
   ["Reports", "/admin/reports", "reports"],
   ["Verification", "/admin/verification", "verification"],
   ["Health", "/admin/health", "health"],
+  ["Quality Queue", "/admin/quality", "quality"],
   ["Categories", "/admin/categories", "categories"],
   ["Audit Log", "/admin/audit", "audit"],
   ["Settings", "/admin/settings", "settings"],
