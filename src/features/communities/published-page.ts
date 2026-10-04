@@ -28,6 +28,7 @@ export async function getPublishedCommunityPage(
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.language && filters.language !== "any") query = query.ilike("language", `%${filters.language.trim()}%`);
   if (filters.region && filters.region !== "any") query = query.ilike("region", `%${filters.region.trim()}%`);
+  if (filters.country && filters.country !== "any") query = query.eq("country_code", filters.country.trim().toUpperCase());
   if (filters.minMembers !== undefined) query = query.gte("member_count", filters.minMembers);
   if (filters.maxMembers !== undefined) query = query.lte("member_count", filters.maxMembers);
   if (filters.age && filters.age !== "any") {
@@ -69,6 +70,7 @@ export async function searchPublishedCommunityPage(
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.language && filters.language !== "any") query = query.ilike("language", `%${filters.language.trim()}%`);
   if (filters.region && filters.region !== "any") query = query.ilike("region", `%${filters.region.trim()}%`);
+  if (filters.country && filters.country !== "any") query = query.eq("country_code", filters.country.trim().toUpperCase());
   if (filters.minMembers !== undefined) query = query.gte("member_count", filters.minMembers);
   if (filters.maxMembers !== undefined) query = query.lte("member_count", filters.maxMembers);
   if (filters.categorySlug) {
