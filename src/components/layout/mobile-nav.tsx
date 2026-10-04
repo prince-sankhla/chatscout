@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { ActiveMobileNav } from "./active-nav";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
-const PRIVATE_NAV_PREFIXES = ["/dashboard", "/admin", "/brand"] as const;
+const PRIVATE_NAV_PREFIXES = ["/dashboard", "/admin"] as const;
 
 function hideMobileNav(pathname: string) {
-  return PRIVATE_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return PRIVATE_NAV_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
 export function MobileNav() {
@@ -37,5 +37,3 @@ export function MobileNav() {
 
   return <nav className="mobile-nav" aria-label="Mobile navigation"><ActiveMobileNav authenticated={authenticated} /></nav>;
 }
-
-// Keep mobile navigation isolated from server-only auth modules so Vercel can build the client bundle.

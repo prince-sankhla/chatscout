@@ -5,7 +5,6 @@ import "./product-polish.css";
 import "./ui-stabilization.css";
 import "./launch-readiness.css";
 import "./frontend-redesign.css";
-import "./rewards-landing.css";
 import "./frontend-refinement.css";
 import "./hero-final.css";
 import "./hero-polish-final.css";
@@ -18,12 +17,12 @@ const googleSiteVerification = rawGoogleSiteVerification?.match(/content=[\"']([
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "ChatScout | Find your next group chat",
-  description: "Discover active communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
+  title: "ChatScout | Discover communities worth joining",
+  description: "Discover communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
   ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
   openGraph: {
-    title: "ChatScout | Find your next group chat",
-    description: "Discover active communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
+    title: "ChatScout | Discover communities worth joining",
+    description: "Discover communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
     url: "/",
     siteName: "ChatScout",
     type: "website",
@@ -31,8 +30,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "ChatScout | Find your next group chat",
-    description: "Discover active communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
+    title: "ChatScout | Discover communities worth joining",
+    description: "Discover communities across Instagram, WhatsApp, Telegram and Discord by interest, language, region and community type.",
     images: ["/brand/chatscout-logo.png"],
   },
 };

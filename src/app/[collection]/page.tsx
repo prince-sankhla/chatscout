@@ -34,17 +34,18 @@ async function getIndexableOpportunities(collection: DemandCollection) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const collection = (await params).collection as DemandCollection;
   if (!COLLECTION_LABELS[collection]) return { title: "Not found | ChatScout", robots: { index: false, follow: true } };
-  const title = `${COLLECTION_LABELS[collection]} | ChatScout`;
-  const description = `Explore search-demand-driven ${COLLECTION_LABELS[collection].toLowerCase()} on ChatScout, backed by real community listings.`;
-  const canonical = `${SITE_URL}/${collection}`;
+  const label = COLLECTION_LABELS[collection];
+  const title = "Explore " + label + " | ChatScout";
+  const description = "Browse focused " + label.toLowerCase() + " on ChatScout from real community listings.";
+  const canonical = SITE_URL + "/" + collection;
   return {
     metadataBase: new URL(SITE_URL),
     title,
     description,
     alternates: { canonical },
     robots: { index: true, follow: true },
-    openGraph: { type: "website", url: canonical, title, description, siteName: "ChatScout", images: [{ url: `${SITE_URL}/brand/chatscout-logo.png`, width: 1254, height: 1254, alt: "ChatScout" }] },
-    twitter: { card: "summary_large_image", title, description, images: [`${SITE_URL}/brand/chatscout-logo.png`] },
+    openGraph: { type: "website", url: canonical, title, description, siteName: "ChatScout", images: [{ url: SITE_URL + "/brand/chatscout-logo.png", width: 1254, height: 1254, alt: "ChatScout" }] },
+    twitter: { card: "summary_large_image", title, description, images: [SITE_URL + "/brand/chatscout-logo.png"] },
   };
 }
 
@@ -54,13 +55,13 @@ export default async function DemandCollectionPage({ params }: Props) {
   const opportunities = await getIndexableOpportunities(collection);
   if (!opportunities.length) notFound();
   const label = COLLECTION_LABELS[collection];
-  const pageUrl = `${SITE_URL}/${collection}`;
+  const pageUrl = SITE_URL + "/" + collection;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${label} | ChatScout`,
+    name: label + " | ChatScout",
     url: pageUrl,
-    description: `Search-demand-driven ${label.toLowerCase()} with real ChatScout community listings.`,
+    description: "Focused " + label.toLowerCase() + " built from real ChatScout community listings.",
     isPartOf: { "@type": "WebSite", name: "ChatScout", url: SITE_URL },
   };
 
@@ -71,13 +72,13 @@ export default async function DemandCollectionPage({ params }: Props) {
           <nav aria-label="Breadcrumb" className="detail-breadcrumbs">
             <Link href="/">Home</Link><span>›</span><span aria-current="page">{label}</span>
           </nav>
-          <p className="eyebrow">CHATSCOUT DISCOVERY</p>
+          <p className="eyebrow">CHATSCOUT DIRECTORY</p>
           <h1>{label}</h1>
-          <p>Browse focused collections built only where ChatScout has a useful supply of real listed communities.</p>
+          <p>Browse focused collections where ChatScout has enough real listings to be useful.</p>
         </section>
         <div className="platform-categories">
           {opportunities.map((item) => (
-            <Link href={`/${item.routeCollection}/${item.slug}`} key={item.slug}>
+            <Link href={"/" + item.routeCollection + "/" + item.slug} key={item.slug}>
               <Icon name="arrow" />
               <b>{item.title}</b>
               <span>{item.keyword}</span>

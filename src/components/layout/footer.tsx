@@ -4,12 +4,14 @@ export function Footer() {
   return (
     <footer className="neon-footer">
       <div className="footer-brand">
-        <p>Community discovery across the platforms people already use.</p>
+        <b>ChatScout</b>
+        <p>Discover communities across the platforms people already use.</p>
       </div>
       <div>
         <b>Discover</b>
         <span>
           <Link href="/">Home</Link><br />
+          <Link href="/search">Search</Link><br />
           <Link href="/categories">Categories</Link><br />
           <Link href="/trending">Trending</Link><br />
           <Link href="/new">New Communities</Link>
@@ -27,9 +29,9 @@ export function Footer() {
       <div>
         <b>For communities</b>
         <span>
-          <Link href="/submit">List a GC</Link><br />
-          <Link href="/for-admins">Community Rewards</Link><br />
-          <Link href="/categories">Guides &amp; discovery</Link>
+          <Link href="/submit">List a community</Link><br />
+          <Link href="/for-admins">For community owners</Link><br />
+          <Link href="/categories">Explore categories</Link>
         </span>
       </div>
       <div className="copyright">

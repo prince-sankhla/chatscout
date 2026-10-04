@@ -27,20 +27,13 @@ export function generateStaticParams() {
 async function loadOpportunity(collection: string, slug: string) {
   const opportunity = getDemandOpportunity(collection, slug);
   if (!opportunity) return null;
-  const result = await getPublishedCommunities({
-    categorySlug: opportunity.categorySlug,
-    platform: opportunity.platform,
-    sort: "members",
-  });
+  const result = await getPublishedCommunities({ categorySlug: opportunity.categorySlug, platform: opportunity.platform, sort: "members" });
   if (result.error) return { opportunity, communities: [] };
   return { opportunity, communities: result.data };
 }
 
 function categoryLabel(slug: string) {
-  return slug
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  return slug.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -50,27 +43,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Collection not found | ChatScout", robots: { index: false, follow: true } };
   }
   const { opportunity } = data;
-  const canonical = `${SITE_URL}/${opportunity.routeCollection}/${opportunity.slug}`;
+  const canonical = SITE_URL + "/" + opportunity.routeCollection + "/" + opportunity.slug;
   return {
     metadataBase: new URL(SITE_URL),
-    title: `${opportunity.title} | ChatScout`,
+    title: opportunity.title + " | ChatScout",
     description: opportunity.description,
     alternates: { canonical },
     robots: { index: true, follow: true },
     openGraph: {
       type: "website",
       url: canonical,
-      title: `${opportunity.title} | ChatScout`,
+      title: opportunity.title + " | ChatScout",
       description: opportunity.description,
       siteName: "ChatScout",
-      images: [{ url: `${SITE_URL}/brand/chatscout-logo.png`, width: 1254, height: 1254, alt: "ChatScout" }],
+      images: [{ url: SITE_URL + "/brand/chatscout-logo.png", width: 1254, height: 1254, alt: "ChatScout" }],
     },
-    twitter: {
-      card: "summary_large_image",
-      title: `${opportunity.title} | ChatScout`,
-      description: opportunity.description,
-      images: [`${SITE_URL}/brand/chatscout-logo.png`],
-    },
+    twitter: { card: "summary_large_image", title: opportunity.title + " | ChatScout", description: opportunity.description, images: [SITE_URL + "/brand/chatscout-logo.png"] },
   };
 }
 
@@ -86,14 +74,14 @@ export default async function DemandLandingPage({ params }: Props) {
     .filter((item) => item !== opportunity && item.routeCollection === opportunity.routeCollection)
     .filter((item) => item.categorySlug !== opportunity.categorySlug)
     .slice(0, 3);
-  const pageUrl = `${SITE_URL}/${opportunity.routeCollection}/${opportunity.slug}`;
-  const categoryUrl = `/categories/${encodeURIComponent(opportunity.categorySlug)}`;
+  const pageUrl = SITE_URL + "/" + opportunity.routeCollection + "/" + opportunity.slug;
+  const categoryUrl = "/categories/" + encodeURIComponent(opportunity.categorySlug);
 
   const jsonLd = [
     {
       "@context": "https://schema.org",
       "@type": "CollectionPage",
-      name: `${opportunity.title} | ChatScout`,
+      name: opportunity.title + " | ChatScout",
       url: pageUrl,
       description: opportunity.description,
       isPartOf: { "@type": "WebSite", name: "ChatScout", url: SITE_URL },
@@ -103,8 +91,8 @@ export default async function DemandLandingPage({ params }: Props) {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
-        { "@type": "ListItem", position: 2, name: collectionLabel, item: `${SITE_URL}/${opportunity.routeCollection}` },
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+        { "@type": "ListItem", position: 2, name: collectionLabel, item: SITE_URL + "/" + opportunity.routeCollection },
         { "@type": "ListItem", position: 3, name: opportunity.title, item: pageUrl },
       ],
     },
@@ -119,7 +107,7 @@ export default async function DemandLandingPage({ params }: Props) {
             <Link href={categoryUrl}>{categoryLabel(opportunity.categorySlug)}</Link><span>›</span>
             <span aria-current="page">{opportunity.title}</span>
           </nav>
-          <p className="eyebrow">CHATSCOUT SEARCH DEMAND</p>
+          <p className="eyebrow">CHATSCOUT COLLECTION</p>
           <h1>{opportunity.title}</h1>
           <p>{opportunity.description}</p>
           <div className="detail-trust-line">
@@ -134,11 +122,11 @@ export default async function DemandLandingPage({ params }: Props) {
         {related.length > 0 && (
           <section className="discover-section">
             <div className="section-heading">
-              <div><p className="eyebrow">RELATED SEARCHES</p><h2>More <span>collections</span></h2></div>
+              <div><p className="eyebrow">RELATED COLLECTIONS</p><h2>More <span>collections</span></h2></div>
             </div>
             <div className="platform-categories">
               {related.map((item) => (
-                <Link href={`/${item.routeCollection}/${item.slug}`} key={`${item.routeCollection}:${item.slug}`}>
+                <Link href={"/" + item.routeCollection + "/" + item.slug} key={item.routeCollection + ":" + item.slug}>
                   <Icon name="arrow" />
                   <b>{item.title}</b>
                   <span>{item.keyword}</span>

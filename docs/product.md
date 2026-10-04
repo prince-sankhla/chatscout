@@ -1,90 +1,115 @@
-# ChatScout Product - V1 Scope
+# ChatScout Product Scope
 
 ## Overview
 
-ChatScout is an **India-first discovery platform for Instagram group chats**.
+ChatScout is an India-first **multi-platform community discovery directory**.
 
-The platform helps users discover and join Instagram group chats organized by topics and communities.
+The platform helps people discover and evaluate public community listings across Instagram, WhatsApp, Telegram and Discord. Visitors can search by topic and intent, filter by platform and useful community attributes, preview listing context, and continue to the original platform to join.
 
-## V1 Features
+## Public discovery
 
-### User Discovery Flow
+### Search and browse
 
-1. **Community Browse/Search**
-   - Users can search for Instagram group chats
-   - Communities are indexed by topics/categories
-   - Results show community details and metadata
+- Intent-aware community search
+- Platform filtering
+- Category and subcategory browsing
+- Language and region filtering
+- Age and member-size filtering
+- New and trending discovery
+- Related-community recommendations
 
-2. **Community Detail Page**
-   - Community name, description, member count
-   - Topic/category tags
-   - Community admin/owner information
-   - "Join on Instagram" call-to-action (external link)
+### Community pages
 
-3. **Join Flow**
-   - External redirect to Instagram group chat link
-   - No in-app joining or authentication required for users
+Community pages can show:
 
-### Admin/Community Owner Flow
+- Community name and description
+- Platform
+- Member count
+- Categories and tags
+- Language and region
+- Trust and freshness signals
+- Community rules, eligibility and restrictions when supplied
+- Join CTA to the original platform
+- Related and trending communities
+- SEO metadata, canonical URLs and structured data
 
-1. **Community Submission**
-   - Community owners submit their Instagram group chat
-   - Form collects: group name, description, category, member count, admin contact
+### Collection and SEO pages
 
-2. **Moderation & Verification**
-   - Admin review process
-   - Verification that group chat is legitimate and active
-   - Compliance check
+ChatScout exposes focused platform/category collections only where the database has enough real community supply to make the page useful.
 
-3. **Publication**
-   - Approved communities listed on ChatScout
-   - Community metadata stored and searchable
+Core public URL families include:
 
-## What is NOT in V1
+- \`/search\`
+- \`/categories\`
+- \`/categories/[slug]\`
+- \`/trending\`
+- \`/new\`
+- \`/community/[slug]\`
+- \`/whatsapp-groups/[slug]\`
+- \`/telegram-groups/[slug]\`
+- \`/discord-servers/[slug]\`
+- \`/instagram-gcs/[slug]\`
 
-The following are explicitly **NOT** part of the current V1 implementation:
+## Community owner workflow
 
-- ❌ **Payments/Monetization** - No payment processing, subscriptions, or premium features
-- ❌ **Community Marketplace** - No in-app commerce or trading
-- ❌ **Bots** - No bot infrastructure or automation
-- ❌ **APIs** - No public API for third-party integrations
-- ❌ **Advanced Reputation Systems** - No user karma, badges, or reputation scoring
-- ❌ **Creator Monetization** - No revenue sharing or creator tools
-- ❌ **Vynlo Infrastructure** - No event hosting or infrastructure beyond simple discovery
-- ❌ **Dark Mode** - UI will be light mode only initially
-- ❌ **Mobile App** - Web-first only (responsive design covers mobile)
-- ❌ **Advanced Analytics** - Basic analytics only (future)
-- ❌ **Messaging/Chat** - No in-app messaging between users
-- ❌ **Community Moderation Tools** - No tools for community owners to manage members
-- ❌ **Verification Badges** - No badge system for verified communities (future)
-- ❌ **Recommendations** - No ML-based recommendations (future)
+Owners can:
 
-## Technical Scope - V1
+1. Submit a community for review.
+2. Claim an existing listing when ownership can be verified.
+3. Request updates to an owned listing.
+4. Keep listing information accurate.
+5. View basic listing views, join clicks and listing completeness in a private dashboard.
 
-- **Frontend Only**: Initial release focuses on web interface
-- **No User Accounts Required**: Users browse as guests, only admins need accounts
-- **No Supabase Yet**: Database and backend NOT implemented in this step
-- **Supabase Auth**: Will be used for admin authentication (future)
-- **Static/Demo Data**: Placeholder communities for UI development (not fake data mixed with real)
+## Operations
 
-## V1 Success Criteria
+The private Controller provides:
 
-- Clean, scalable architecture that supports future features
-- Professional, responsive UI
-- Fast community search/browse experience
-- Easy community submission for owners
-- Clear admin verification workflow
+- Admin authentication
+- Submission review and publication
+- Community search and filtering
+- Claims review
+- Verification workflows
+- Community health monitoring
+- Reports
+- Category management
+- Import tooling
+- Audit logs
+- Analytics
 
-## Future Expansions (Post-V1)
+## Analytics
 
-These will be addressed in later phases:
+Discovery events are tracked for useful product measurement, including search, community views and join clicks. The public directory remains usable without an account.
 
-- User accounts and profiles
-- Community ratings and reviews
-- Community analytics for owners
-- Advanced search filters
-- Payment/premium features
-- Mobile app
-- Community moderation tools
-- Analytics and insights
-- API for third-party integrations
+## Product boundary
+
+ChatScout is directory-first. The active application does **not** include:
+
+- Brand marketplace
+- Campaign management
+- Campaign execution
+- Audience packs
+- Payout processing
+- Rewards or earnings ledgers
+- Influencer/brand workspaces
+- In-app community member management
+
+Those concerns are deliberately outside the current product surface so search, discovery, listing quality and community supply remain the core experience.
+
+## Technical scope
+
+- Next.js App Router
+- React and TypeScript
+- Supabase PostgreSQL/Auth/Storage
+- Vercel deployment
+- Server-rendered public discovery pages
+- Client-side interactive filters/navigation where appropriate
+- Background community-health checks
+
+## Success criteria
+
+- Fast, useful community discovery
+- Strong indexable page coverage from real listings
+- Clear context before users leave ChatScout to join
+- Healthy and current directory data
+- Straightforward submission and ownership workflows
+- Low operational complexity as the directory grows

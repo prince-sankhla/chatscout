@@ -1,74 +1,76 @@
 # ChatScout
 
-ChatScout is an **India-first community discovery platform for Instagram, WhatsApp, Telegram and Discord**.
+ChatScout is an India-first **community discovery directory** for Instagram, WhatsApp, Telegram and Discord.
 
-Help users discover and join communities organized by topics, interests, language and location.
+People use ChatScout to discover communities by topic, platform, language, region, age and size, preview useful listing details, and continue to the original platform to join.
 
-## Current Status
+## Product focus
 
-🚀 **Launch-ready multi-platform MVP implementation**
+ChatScout is intentionally directory-first.
 
-The current application includes the public discovery experience, search and filters, multi-platform community detail/join flows, owner submission, analytics, moderation, Supabase Auth/RLS, and the admin Controller.
+### Public discovery
 
-### ✅ Implemented
+- Multi-platform community directory
+- Intent-aware search and relevance ranking
+- Platform, category, language, region, age and member filters
+- Trending and newly added communities
+- Community detail pages with trust and freshness signals
+- Related communities and focused collection pages
+- Join redirects with analytics
+- Search-engine-friendly community, category and collection URLs
+- Anonymous discovery analytics
 
-- Next.js App Router + TypeScript strict mode
-- Tailwind CSS configuration and custom product styling
-- Public multi-platform community discovery UI
-- Search, category, platform, language, region, age and member filters
-- Community detail pages with trust/health/verification signals
-- Instagram, WhatsApp, Telegram and Discord community links
-- Multi-platform community submission flow
-- Automatic public metadata preview for supported community invite links
-- Reports and moderation workflow
-- Admin authentication and protected Controller routes
-- Admin approval/rejection/edit/archive/restore/delete actions
-- Verification and community health tooling
-- Analytics and admin audit log
-- Supabase PostgreSQL + RLS
-- Responsive/mobile layout
-- Vercel deployment configuration
+### Community owners
 
-### 🔎 Search Console verification
+- Submit a community for review
+- Upload listing imagery and details
+- Claim an existing community
+- Request listing updates
+- View listing performance from a private dashboard
+- Receive review and status notifications
 
-The Google Search Console ownership verification file is served from `public/` so the production site can be verified using the HTML-file method.
+### Operations
 
-## Tech Stack
+- Admin authentication and Controller
+- Submission moderation
+- Verification and health monitoring
+- Reports, audit logs and category management
+- Community import and data-quality tooling
 
-### Frontend
+Brand marketplace, campaign execution, payouts and rewards workflows are intentionally outside the active application surface.
 
-- **Framework**: [Next.js](https://nextjs.org) with App Router
-- **Language**: TypeScript (strict)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com) + product CSS
-- **Bundler**: Turbopack
-- **Package Manager**: npm
+## Tech stack
 
-### Backend
+- **Frontend:** Next.js App Router, React, TypeScript
+- **Styling:** Tailwind CSS + product CSS
+- **Database/Auth/Storage:** Supabase PostgreSQL, Auth and Storage
+- **Hosting:** Vercel
 
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Hosting**: Vercel
+## Project structure
 
-## Project Structure
-
-```
+\`\`\`
 chatscout/
 ├── src/
-│   ├── app/                    # Routes, layouts, entry points
-│   ├── components/             # Shared UI and admin components
-│   ├── features/               # Feature-specific logic
-│   │   ├── analytics/          # Event tracking
-│   │   ├── auth/               # Admin auth actions
+│   ├── app/                    # Public routes, owner routes, Controller and APIs
+│   ├── components/             # Shared public, owner, admin and UI components
+│   ├── features/
+│   │   ├── analytics/          # Discovery event tracking
+│   │   ├── auth/               # Admin/auth actions
+│   │   ├── categories/         # Community taxonomy
+│   │   ├── claims/             # Community ownership claims
 │   │   ├── communities/        # Community access/presentation
-│   │   ├── discovery/          # Search/browse communities
-│   │   ├── health/             # Community health checks
-│   │   └── moderation/         # Admin moderation actions
-│   ├── lib/                    # Shared utilities and Supabase clients
-│   └── types/                  # Centralized TypeScript types
-├── docs/                       # Architecture and product docs
+│   │   ├── community-monitor/  # Listing health and metadata checks
+│   │   ├── discovery/          # Search and browse logic
+│   │   ├── health/             # Health helpers
+│   │   ├── moderation/         # Controller/moderation logic
+│   │   ├── owner/              # Owner dashboard data
+│   │   └── submissions/        # Community submissions
+│   ├── lib/                    # Supabase clients and shared utilities
+│   └── types/                  # Database/domain types
+├── docs/                       # Architecture, demand and decisions
 ├── public/                     # Static assets
-└── supabase/                   # Database migrations, seeds and config
-```
+└── supabase/                   # Database migrations and seeds
+\`\`\`
 
 ## Development
 
@@ -77,39 +79,24 @@ chatscout/
 - Node.js 18+
 - npm 9+
 
-### Setup
-
-```bash
+\`\`\`bash
 npm install
 Copy-Item .env.example .env.local
 npm run dev
-```
+\`\`\`
 
-Open [http://localhost:3000](http://localhost:3000).
+Open http://localhost:3000.
 
-### Available Scripts
+### Quality checks
 
-```bash
-npm run dev
-npm run build
-npm start
-npm run lint
-npm run seed:dev
-npm run import:communities
-```
-
-## Code Quality
-
-Before shipping, run:
-
-```bash
+\`\`\`bash
 npm run lint
 npm run build
-```
+\`\`\`
 
 ## Deployment
 
-ChatScout is designed for deployment on Vercel with Supabase as the backend.
+ChatScout is designed for Vercel with Supabase as the backend.
 
 ## License
 
