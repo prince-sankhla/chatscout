@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
 import { extractInstagramDiscoveries } from "@/features/discovery/instagram-extractor";
+import { detectCountry } from "@/lib/countries";
 
 const REDDIT_SUBREDDITS = ["InstagramFriends","OnlineFriend","MakeNewFriendsHere","friendship","Needafriend","IndianTeenagers","TeenIndia","Delhi_teens","MSRITians","NHCEBengaluru","NiTNarula","India","college","anime","gaming","music","books","Travel","Cricket","soccer"] as const;
 const SEARCH_QUERIES = [
@@ -41,7 +42,8 @@ async function categoryId(admin:any,category:string|null){if(!category)return nu
 async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any){
   const existing=await admin.from("discovery_sources").select("id,community_id").eq("normalized_url",d.normalizedUrl).maybeSingle();
   if(existing.data?.community_id)return{status:"existing",communityId:existing.data.community_id};
-  const seed={source_type:sourceType,source_url:sourceUrl,raw_url:d.rawUrl,normalized_url:d.normalizedUrl,platform:"instagram",title:d.title,description:d.description,discovered_name:d.name,discovered_category:d.category,discovered_language:d.language,discovered_region:d.region,metadata:{extractor:"instagram-invite-v2"}};
+  const country=detectCountry([sourceUrl,d.title,d.description,d.name,d.region].filter(Boolean).join(" ")) ?? (d.countryCode ? {code:d.countryCode,name:d.countryName??d.countryCode}:null);
+  const seed={source_type:sourceType,source_url:sourceUrl,raw_url:d.rawUrl,normalized_url:d.normalizedUrl,platform:"instagram",title:d.title,description:d.description,discovered_name:d.name,discovered_category:d.category,discovered_language:d.language,discovered_region:d.region,discovered_country_code:country?.code??null,discovered_country_name:country?.name??null,metadata:{extractor:"instagram-invite-v3"}};
   const{data:source,error:sourceError}=await admin.from("discovery_sources").upsert(seed,{onConflict:"normalized_url"}).select("id").single();
   if(sourceError)return{status:"failed",error:sourceError.message};
   const{data:dupe}=await admin.from("communities").select("id,health_status").eq("status","published").ilike("invite_url",d.normalizedUrl).maybeSingle();
@@ -54,14 +56,14 @@ async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any)
   const name=safeName(preview.name??d.name,`${d.category??"Instagram"} Group Chat`);
   const slug=await uniqueSlug(admin,name);
   const description=safeDescription(d.description??d.title,sourceUrl);
-  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:d.region&&/^india$/i.test(d.region)?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
+  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,country_code:country?.code??null,country_name:country?.name??null,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:d.region&&/^india$/i.test(d.region)?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
   const{data:community,error}=await admin.from("communities").insert(insert).select("id").single();
   if(error){await admin.from("discovery_sources").update({extraction_status:"failed",health_status:health,health_error:error.message}).eq("id",source.id);return{status:"failed",error:error.message};}
   const cid=await categoryId(admin,d.category);if(cid)await admin.from("community_categories").insert({community_id:community.id,category_id:cid});
   await admin.rpc("refresh_directory_quality",{p_limit:1});
   const{data:quality}=await admin.from("communities").select("quality_score,quality_grade").eq("id",community.id).single();
   await admin.from("communities").update({needs_manual_review:quality?.quality_grade!=="good"}).eq("id",community.id);
-  await admin.from("discovery_sources").update({community_id:community.id,extraction_status:"published",health_status:health,health_checked_at:new Date().toISOString(),metadata:{extractor:"instagram-invite-v2",quality_score:quality?.quality_score??null,quality_grade:quality?.quality_grade??null}}).eq("id",source.id);
+  await admin.from("discovery_sources").update({community_id:community.id,extraction_status:"published",health_status:health,health_checked_at:new Date().toISOString(),metadata:{extractor:"instagram-invite-v3",quality_score:quality?.quality_score??null,quality_grade:quality?.quality_grade??null,country_code:country?.code??null}}).eq("id",source.id);
   return{status:"published",communityId:community.id,quality:quality?.quality_grade??null};
 }
 
