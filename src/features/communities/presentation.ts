@@ -2,7 +2,6 @@ import { unstable_cache } from "next/cache";
 import type { Community } from "@/types/community";
 import type { CommunityRow } from "@/types/database";
 import { resolveRenderedCommunityPreview } from "@/features/community-monitor/rendered-resolver";
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { COMMUNITY_IMAGE_BUCKET, getPublishedCommunityImageUrl } from "@/lib/supabase/community-images";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -100,9 +99,10 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
   const imagePaths=[...new Set(communities.map((community)=>community.image_path).filter((path):path is string=>Boolean(path)))];
   const imageMap=new Map<string,string>();
   if(imagePaths.length){
-    const admin=createAdminSupabaseClient();
-    const {data:signed}=await admin.storage.from(COMMUNITY_IMAGE_BUCKET).createSignedUrls(imagePaths,3600);
-    for(const item of signed??[]){if(item.path&&item.signedUrl)imageMap.set(item.path,item.signedUrl);}
+    for(const path of imagePaths){
+      const {data}=supabase.storage.from(COMMUNITY_IMAGE_BUCKET).getPublicUrl(path);
+      if(data.publicUrl) imageMap.set(path,data.publicUrl);
+    }
   }
 
   const presentations=await Promise.all(communities.map(async(community)=>{
