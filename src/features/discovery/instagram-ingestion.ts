@@ -15,7 +15,6 @@ const SOURCE_SEEDS=[
   {type:"google",url:"https://www.google.com/search?q=%22ig.me%2Fj%2F%22+%22instagram+gc%22"},
   {type:"bing",url:"https://www.bing.com/search?q=%22ig.me%2Fj%2F%22+%22instagram+group+chat%22"},
 ] as const;
-
 type SourceType=(typeof SOURCE_SEEDS)[number]["type"];
 function slugify(value:string){return value.toLowerCase().normalize("NFKD").replace(/[^\\p{Letter}\\p{Number}]+/gu,"-").replace(/^-+|-+$/g,"").slice(0,70)||"instagram-community";}
 async function uniqueSlug(admin:any,base:string){let slug=slugify(base);const{data}=await admin.from("communities").select("slug").ilike("slug",`${slug}%`).limit(20);const used=new Set((data??[]).map((x:any)=>x.slug));if(!used.has(slug))return slug;for(let i=2;i<100;i++){const next=`${slug}-${i}`;if(!used.has(next))return next;}return `${slug}-${Date.now().toString(36)}`;}
@@ -40,7 +39,8 @@ async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any)
   const name=safeName(preview.name??d.name,`${d.category??"Instagram"} Group Chat`);
   const slug=await uniqueSlug(admin,name);
   const description=safeDescription(d.description??d.title,sourceUrl);
-  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:"instagram",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
+  const platformScope=d.region&&/^india$/i.test(d.region)?"india":"global";
+  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:platformScope,claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
   const{data:community,error}=await admin.from("communities").insert(insert).select("id").single();
   if(error){await admin.from("discovery_sources").update({extraction_status:"failed",health_status:health,health_error:error.message}).eq("id",source.id);return {status:"failed",error:error.message};}
   const cid=await categoryId(admin,d.category);if(cid)await admin.from("community_categories").insert({community_id:community.id,category_id:cid});
@@ -52,7 +52,7 @@ async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any)
 }
 
 export async function runInstagramDiscovery(limit=50){
-  const admin=createAdminSupabaseClient();let fetched=0,found=0,published=0,duplicates=0,inactive=0,failed=0;
+  const admin=createAdminSupabaseClient() as any;let fetched=0,found=0,published=0,duplicates=0,inactive=0,failed=0;
   for(const seed of SOURCE_SEEDS.slice(0,8)){
     if(found>=limit)break;
     try{
