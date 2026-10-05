@@ -37,7 +37,7 @@ export function Footer() {
       <div className="copyright">
         © 2026 ChatScout. All rights reserved.
         <br />
-        <small>Terms of Use　|　Privacy Policy</small>
+        <small><Link href="/terms">Terms of Use</Link>　|　<Link href="/privacy">Privacy Policy</Link></small>
       </div>
     </footer>
   );
