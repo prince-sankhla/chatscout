@@ -61,12 +61,12 @@ export function CommunityDetailTrust({
         </article>
         <article className={styles.fact}>
           <span>Region</span>
-          <strong>{label(region, "India-wide")}</strong>
+          <strong>{label(region, "Not specified")}</strong>
           <small>community reach</small>
         </article>
         <article className={styles.fact}>
           <span>Access</span>
-          <strong>{label(ageRestriction, "No restriction")}</strong>
+          <strong>{label(ageRestriction, "Not specified")}</strong>
           <small>age / access policy</small>
         </article>
       </div>
