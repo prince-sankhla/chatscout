@@ -9,6 +9,7 @@ import { getPublishedCommunities, getTrendingPublishedCommunities, searchPublish
 import { getPublishedCommunityCount } from "@/features/communities/published-count";
 import { getHomepageFeaturedCommunities } from "@/features/communities/homepage-featured";
 import { toCommunityPresentations } from "@/features/communities/presentation";
+import styles from "./discovery-home.module.css";
 
 const topics = ["AI & ML", "Coding", "JEE", "NEET", "Anime", "Gaming", "Startups", "Memes", "Fitness", "Jaipur"] as const;
 const categoryIcons = [["spark", "AI & ML"], ["code", "Coding"], ["graduation", "Education"], ["gamepad", "Gaming"], ["heart", "Anime & Manga"], ["briefcase", "Startups & Jobs"], ["music", "Music"], ["flame", "Memes & Humor"], ["map", "Local Communities"]] as const;
@@ -116,15 +117,15 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
           </Reveal>
 
           <Reveal>
-            <section className="faq-home-section">
-              <div className="faq-home-copy">
+            <section className={styles.section}>
+              <div className={styles.copy}>
                 <p className="eyebrow">CHATSCOUT FAQ</p>
                 <h2>How the <span>community network</span> works.</h2>
                 <p>ChatScout is more than a directory: people discover communities, owners maintain their listings, and businesses can reach relevant audiences through the network.</p>
               </div>
-              <div className="faq-home-actions">
+              <div className={styles.actions}>
                 <Link className="hero-action" href="/faq">Read the FAQ <Icon name="arrow" size={14} /></Link>
-                <Link className="faq-mini-link" href="/for-admins">For community owners</Link>
+                <Link className={styles.miniLink} href="/for-admins">For community owners</Link>
               </div>
             </section>
           </Reveal>
