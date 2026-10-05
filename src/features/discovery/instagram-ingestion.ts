@@ -21,6 +21,8 @@ const SOURCE_SEEDS = [
   {type:"website" as const,url:"https://www.meetup.com/meet-bkk/"},
   {type:"website" as const,url:"https://www.meetup.com/chillpal/"},
   {type:"website" as const,url:"https://luma.com/4ccc6dj2"},
+  {type:"website" as const,url:"https://joinagroupchat.com/instagram"},
+  {type:"website" as const,url:"https://kendamadepot.com/apps/help-center"},
 ] as const;
 type SourceType=(typeof SOURCE_SEEDS)[number]["type"];
 
