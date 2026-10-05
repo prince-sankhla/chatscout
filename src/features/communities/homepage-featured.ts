@@ -24,7 +24,10 @@ export async function getHomepageFeaturedCommunities(): Promise<{ data: Communit
     .from("communities")
     .select("*")
     .eq("status", "published")
-    .limit(500);
+    .eq("quality_grade", "good")
+    .eq("health_status", "healthy")
+    .eq("join_enabled", true)
+    .limit(1000);
 
   if (error) return { data: [], error: "Unable to load homepage communities." };
 
