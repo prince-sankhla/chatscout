@@ -108,13 +108,13 @@ export async function PlatformListing({
   const total = payload?.total ?? communities.length;
   const totalPages = Math.max(1, Math.ceil(total / PUBLISHED_PAGE_SIZE));
   const categoryOptions = categoryResult.data?.map((row) => [row.slug, row.name] as const) ?? [];
-  const title = kind === "search" ? "Search communities" : kind === "trending" ? "Trending communities" : "New communities";
+  const title = kind === "search" ? "Search communities" : kind === "trending" ? "Trending communities" : "Recently added listings";
   const platformLabel = platform ? platform[0].toUpperCase() + platform.slice(1) : "all platforms";
   const subtitle = kind === "search" && query
     ? `Results for “${query}”`
     : kind === "trending"
       ? "What people are discovering and joining right now."
-      : `Freshly published communities across ${platformLabel}.`;
+      : `Recently added to ChatScout across ${platformLabel}. Listing age does not mean recent community activity.`;
   const activeFilterCount = [category, platform, language, region, country, age, members].filter(Boolean).length;
   const searchMetadata = kind === "search" && query
     ? {
@@ -157,10 +157,10 @@ export async function PlatformListing({
             {activeFilterCount
               ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} active`
               : kind === "trending"
-                ? "Ranked by recent views + joins"
+                ? "Ranked by quality + freshness + bounded recent demand"
                 : kind === "search"
                   ? "Ranked by relevance + useful community signals"
-                  : "All published listings"}
+                  : "Healthy, quality-checked listings"}
           </span>
         </div>
         <DiscoveryFilters
