@@ -31,15 +31,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const row = result.data;
   const country = (row as typeof row & { country_name?: string | null }).country_name ?? null;
+  const platformMeta = PLATFORM_META[row.platform];
   const canonical = SITE_URL + "/community/" + encodeURIComponent(row.slug);
   const imagePath = row.image_path ? await getPublishedCommunityImageUrl(row.image_path) : null;
   const image = imagePath ?? SITE_URL + "/brand/chatscout-logo.png";
+  const platformSeoLabel = platformMeta.label === "Discord" ? "Discord Server" : platformMeta.label + " Group Chat";
   const title = country
-    ? row.name + " Instagram Group Chat in " + country + " | ChatScout"
-    : row.name + " Instagram Group Chat | ChatScout";
+    ? row.name + " " + platformSeoLabel + " in " + country + " | ChatScout"
+    : row.name + " " + platformSeoLabel + " | ChatScout";
   const baseDescription = communityDescription(row.name, row.description);
   const description = country
-    ? baseDescription + " Find this Instagram group chat in " + country + " on ChatScout."
+    ? baseDescription + " Find this " + platformSeoLabel.toLowerCase() + " in " + country + " on ChatScout."
     : baseDescription;
 
   return {
