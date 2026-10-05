@@ -26,7 +26,7 @@ async function getIndexableOpportunities(collection: DemandCollection) {
   const opportunities = DEMAND_OPPORTUNITIES.filter((item) => item.routeCollection === collection);
   const loaded = await Promise.all(opportunities.map(async (item) => {
     const result = await getPublishedCommunities({ categorySlug: item.categorySlug, platform: item.platform, sort: "members" });
-    const indexable = result.data.filter((community) => community.quality_grade === "good");
+    const indexable = (result.data ?? []).filter((community) => community.quality_grade === "good");
     return result.error || indexable.length < MIN_INDEXABLE_LISTINGS ? null : item;
   }));
   return loaded.filter((item): item is (typeof opportunities)[number] => Boolean(item));
