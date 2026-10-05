@@ -3,7 +3,6 @@ import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
 import styles from "./faq.module.css";
-import styles from "./faq.module.css";
 
 export const metadata: Metadata = {
   title: "FAQ | ChatScout",
