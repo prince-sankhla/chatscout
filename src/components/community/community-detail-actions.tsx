@@ -35,9 +35,15 @@ export function CommunityDetailActions({ slug, name }: { slug: string; name: str
   async function share() {
     const url = window.location.href;
     if (navigator.share) {
-      await navigator.share({ title: `${name} | ChatScout`, text: `Discover ${name} on ChatScout.`, url }).catch(() => undefined);
-      setShareLabel("Shared");
-      window.setTimeout(() => setShareLabel("Share"), 1600);
+      try {
+        await navigator.share({ title: `${name} | ChatScout`, text: `Discover ${name} on ChatScout.`, url });
+        setShareLabel("Shared");
+        window.setTimeout(() => setShareLabel("Share"), 1600);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setShareLabel("Share failed");
+        window.setTimeout(() => setShareLabel("Share"), 1800);
+      }
       return;
     }
     if (navigator.clipboard) {
