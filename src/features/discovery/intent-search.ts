@@ -207,7 +207,7 @@ export async function searchPublishedCommunitiesByIntent(
     categoryId = category?.id ?? null;
   }
 
-  let query = supabase.from("communities").select("*").eq("status", "published").eq("quality_grade", "good").eq("join_enabled", true).eq("health_status", "healthy");
+  let query = supabase.from("communities").select("*").eq("status", "published").eq("quality_grade", "good").neq("health_status", "inactive");
   if (effectivePlatform) query = query.eq("platform", effectivePlatform);
   if (effectiveLanguage) query = query.ilike("language", `%${effectiveLanguage.trim()}%`);
   if (effectiveRegion) query = query.ilike("region", `%${effectiveRegion.trim()}%`);
