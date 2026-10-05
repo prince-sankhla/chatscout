@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
 import styles from "./faq.module.css";
+import styles from "./faq.module.css";
 
 export const metadata: Metadata = {
   title: "FAQ | ChatScout",
@@ -153,7 +154,7 @@ export default function FaqPage() {
         </section>
 
         <section className={styles.section} aria-labelledby="faq-owners">
-          <div className="faq-section-heading">
+          <div className={styles.sectionHeading}>
             <div>
               <p className="eyebrow">COMMUNITY OWNERS</p>
               <h2 id="faq-owners">For people who run a community</h2>
@@ -162,7 +163,7 @@ export default function FaqPage() {
               Owner tools <Icon name="arrow" size={14} />
             </Link>
           </div>
-          <div className="faq-list">
+          <div className={styles.list}>
             {faqs.slice(5, 8).map((faq) => (
               <FaqItem key={faq.question} {...faq} />
             ))}
