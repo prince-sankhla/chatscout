@@ -15,6 +15,7 @@ export function Footer() {
           <Link href="/categories">Categories</Link><br />
           <Link href="/trending">Trending</Link><br />
           <Link href="/new">New Communities</Link><br />
+          <Link href="/faq">FAQ</Link><br />
           <Link href="/faq">FAQ</Link>
         </span>
       </div>
