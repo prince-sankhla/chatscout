@@ -16,7 +16,7 @@ function subscribe(onStoreChange: () => void) {
   };
 }
 
-function snapshot() { return localStorage.getItem(savedKey) ?? "[]"; }
+function snapshot() { try { return localStorage.getItem(savedKey) ?? "[]"; } catch { return "[]"; } }
 function serverSnapshot() { return "[]"; }
 
 export function CommunityDetailActions({ slug, name }: { slug: string; name: string }) {
