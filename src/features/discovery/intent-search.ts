@@ -164,7 +164,9 @@ function scoreCommunity(community: CommunityRow, tokens: string[], parsed: Parse
   if (parsed.country && (community.country_code ?? "").toUpperCase() === parsed.country.toUpperCase()) score += 10;
   if (categoryId && categoryIds.has(community.id)) score += 11;
   if (community.verification_status === "verified") score += 2;
-  if (community.health_status === "healthy") score += 1;
+  if (community.health_status === "healthy") score += 2;
+  if (community.quality_grade === "good") score += 3;
+  if (community.topic_confidence !== null && community.topic_confidence !== undefined) score += Math.min(3, community.topic_confidence / 40);
   if (community.member_count !== null) score += Math.min(1.5, Math.log10(Math.max(community.member_count, 1)) * 0.25);
 
   if (community.published_at) {
@@ -205,7 +207,7 @@ export async function searchPublishedCommunitiesByIntent(
     categoryId = category?.id ?? null;
   }
 
-  let query = supabase.from("communities").select("*").eq("status", "published");
+  let query = supabase.from("communities").select("*").eq("status", "published").eq("quality_grade", "good").eq("join_enabled", true).eq("health_status", "healthy");
   if (effectivePlatform) query = query.eq("platform", effectivePlatform);
   if (effectiveLanguage) query = query.ilike("language", `%${effectiveLanguage.trim()}%`);
   if (effectiveRegion) query = query.ilike("region", `%${effectiveRegion.trim()}%`);
