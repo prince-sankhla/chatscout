@@ -116,6 +116,20 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
           </Reveal>
 
           <Reveal>
+            <section className="faq-home-section">
+              <div className="faq-home-copy">
+                <p className="eyebrow">CHATSCOUT FAQ</p>
+                <h2>How the <span>community network</span> works.</h2>
+                <p>ChatScout is more than a directory: people discover communities, owners maintain their listings, and businesses can reach relevant audiences through the network.</p>
+              </div>
+              <div className="faq-home-actions">
+                <Link className="hero-action" href="/faq">Read the FAQ <Icon name="arrow" size={14} /></Link>
+                <Link className="faq-mini-link" href="/for-admins">For community owners</Link>
+              </div>
+            </section>
+          </Reveal>
+
+          <Reveal>
             <section className="neon-bottom-cta">
               <div><b><Icon name="spark" />Have a Group Chat?</b><small>List it on ChatScout and reach people actively searching for communities.</small></div>
               <Link href="/submit">List your community</Link>
