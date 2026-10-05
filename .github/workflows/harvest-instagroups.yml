@@ -36,15 +36,35 @@ jobs:
           anon_key = key.group(1)
           host = re.sub(r"^https?://", "", rest_url).split("/",1)[0]
 
-          dns = requests.get(
-              "https://dns.google/resolve",
-              params={"name": host, "type": "A"},
-              timeout=10,
-          )
-          dns.raise_for_status()
-          answers = [x["data"] for x in dns.json().get("Answer", []) if x.get("type") == 1]
+          def resolve_host(name):
+              seen = set()
+              current = name
+              for _ in range(6):
+                  if current in seen:
+                      break
+                  seen.add(current)
+                  data = requests.get(
+                      "https://dns.google/resolve",
+                      params={"name": current, "type": "A"},
+                      timeout=10,
+                  ).json()
+                  answers = [x["data"] for x in data.get("Answer", []) if x.get("type") == 1]
+                  if answers:
+                      return answers
+                  cname_data = requests.get(
+                      "https://dns.google/resolve",
+                      params={"name": current, "type": "CNAME"},
+                      timeout=10,
+                  ).json()
+                  cname = next((x["data"].rstrip(".") for x in cname_data.get("Answer", []) if x.get("type") == 5), None)
+                  if not cname:
+                      break
+                  current = cname
+              return []
+
+          answers = resolve_host(host)
           if not answers:
-              raise SystemExit(f"No A records returned for {host}")
+              raise SystemExit(f"Could not resolve {host} through A/CNAME")
 
           def fetch_page(offset):
               params = (
