@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/harvest-instagroups.yml"
+      - "data/harvest-trigger.txt"
 
 permissions:
   contents: write
