@@ -23,7 +23,10 @@ export async function getPublishedCommunityPage(
   let query = supabase
     .from("communities")
     .select("*", { count: "exact" })
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("quality_grade", "good")
+    .eq("join_enabled", true)
+    .eq("health_status", "healthy");
 
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.language && filters.language !== "any") query = query.ilike("language", `%${filters.language.trim()}%`);
