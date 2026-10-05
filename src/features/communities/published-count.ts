@@ -8,6 +8,7 @@ export async function getPublishedCommunityCount(): Promise<number> {
     .select("id", { count: "exact", head: true })
     .eq("status", "published")
     .eq("quality_grade", "good")
-    .neq("health_status", "inactive");
+    .eq("health_status", "healthy")
+    .eq("join_enabled", true);
   return count ?? 0;
 }
