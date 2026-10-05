@@ -35,7 +35,7 @@ function classify(text:string){for(const [name,re] of CATEGORY_RULES)if(re.test(
 function detectLanguage(text:string){if(/[\u0900-\u097F]/.test(text))return "Hindi";if(/[\u0980-\u09FF]/.test(text))return "Bengali";if(/[\u0A80-\u0AFF]/.test(text))return "Gujarati";if(/[\u0A00-\u0A7F]/.test(text))return "Punjabi";return /\b(the|and|for|with|join|students|community|group)\b/i.test(text)?"English":null;}
 function inferRegion(text:string){const regions=["India","Jaipur","Delhi","Mumbai","Bengaluru","Bangalore","Kolkata","Chennai","Hyderabad","Pune","United States","UK","Canada","Australia"];return regions.find(x=>new RegExp(`\\b${x.replace(" ","\\s+")}\\b`,"i").test(text))??null;}
 
-export function normalizeInstagramInvite(raw:string){const u=raw.trim().replace(/[),.;!?]+$/g,"");if(!/^https?:\/\/(?:www\.)?ig\.me\/(?:j|channel)\/[A-Za-z0-9_-]+\/?$/i.test(u))return null;return u.replace(/^http:/i,"https:").replace(/\/$/,"").toLowerCase();}
+export function normalizeInstagramInvite(raw:string){const u=raw.trim().replace(/[),.;!?]+$/g,"");const m=u.match(/^https?:\/\/(?:www\.)?ig\.me\/(j|channel)\/([A-Za-z0-9_-]+)\/?$/i);if(!m)return null;return `https://ig.me/${m[1].toLowerCase()}/${m[2]}`;}
 
 export function extractInstagramDiscoveries(html:string):InstagramDiscovery[]{
   const out=new Map<string,InstagramDiscovery>();
