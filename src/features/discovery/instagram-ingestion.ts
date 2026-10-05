@@ -47,34 +47,59 @@ async function fetchSource(url:string){
   if(!isRedditJson)return text;
   try{const payload=JSON.parse(text);const posts=payload?.data?.children??[];return posts.map((item:any)=>{const d=item?.data??{};return `<article><h2>${d.title??""}</h2><p>${d.selftext??""}</p><a href="https://www.reddit.com${d.permalink??""}">source</a></article>`;}).join("\n");}catch{throw new Error("Invalid Reddit JSON response");}
 }
-async function categoryId(admin:any,category:string|null){if(!category)return null;const map:Record<string,string>={"AI & ML":"AI","Cloud & DevOps":"Technology",College:"College Students",Music:"Music",Sports:"Sports",Friends:"Random & Friends",Anime:"Anime",Gaming:"Gaming",Coding:"Coding"};const name=map[category]??"General";const{data}=await admin.from("categories").select("id").eq("name",name).eq("is_active",true).limit(1);return data?.[0]?.id??null;}
+async function categoryId(admin:any,category:string|null){if(!category)return null;const map:Record<string,string>={"AI & ML":"AI","Cloud & DevOps":"Technology",College:"College Students",Music:"Music",Sports:"Sports",Friends:"Random & Friends",Anime:"Anime",Gaming:"Gaming",Coding:"Coding",Travel:"Travel"};const name=map[category];if(!name)return null;const{data}=await admin.from("categories").select("id").eq("name",name).eq("is_active",true).limit(1);return data?.[0]?.id??null;}
+
+async function canonicalInviteUrl(raw:string){
+  try{
+    const url=new URL(raw);
+    const host=url.hostname.toLowerCase();
+    const path=url.pathname.replace(/\/+$/g,"");
+    if(host==="ig.me"||host==="www.ig.me"){
+      const match=path.match(/^\/j\/([A-Za-z0-9_-]+)$/);
+      return match?"https://ig.me/j/"+match[1]:null;
+    }
+    return null;
+  }catch{return null;}
+}
 
 async function ingestOne(admin:any,sourceUrl:string,sourceType:SourceType,d:any){
-  const existing=await admin.from("discovery_sources").select("id,community_id").eq("normalized_url",d.normalizedUrl).maybeSingle();
-  if(existing.data?.community_id)return{status:"existing",communityId:existing.data.community_id};
+  const canonical=await canonicalInviteUrl(d.rawUrl||d.normalizedUrl);
+  const existingSource=await admin.from("discovery_sources").select("id,community_id").eq("normalized_url",d.normalizedUrl).maybeSingle();
+  if(existingSource.data?.community_id)return{status:"existing",communityId:existingSource.data.community_id};
+  const {data:existingCommunity}=canonical
+    ? await admin.from("communities").select("id,status,health_status").eq("canonical_invite_url",canonical).maybeSingle()
+    : {data:null};
+  if(existingCommunity?.id){
+    await admin.from("discovery_sources").upsert({source_type:sourceType,source_url:sourceUrl,raw_url:d.rawUrl,normalized_url:d.normalizedUrl,platform:"instagram",discovered_name:d.name,discovered_category:d.category,discovered_language:d.language,discovered_region:d.region,extraction_status:"duplicate",health_status:existingCommunity.health_status??"unknown",community_id:existingCommunity.id,metadata:{extractor:"instagram-invite-v4",duplicate_of:existingCommunity.id}},{onConflict:"normalized_url"});
+    return{status:"duplicate",communityId:existingCommunity.id};
+  }
   const country=detectCountry([sourceUrl,d.title,d.description,d.name,d.region].filter(Boolean).join(" ")) ?? (d.countryCode ? {code:d.countryCode,name:d.countryName??d.countryCode}:null);
-  const seed={source_type:sourceType,source_url:sourceUrl,raw_url:d.rawUrl,normalized_url:d.normalizedUrl,platform:"instagram",title:d.title,description:d.description,discovered_name:d.name,discovered_category:d.category,discovered_language:d.language,discovered_region:d.region,discovered_country_code:country?.code??null,discovered_country_name:country?.name??null,metadata:{extractor:"instagram-invite-v3"}};
+  const seed={source_type:sourceType,source_url:sourceUrl,raw_url:d.rawUrl,normalized_url:d.normalizedUrl,platform:"instagram",title:d.title,description:d.description,discovered_name:d.name,discovered_category:d.category,discovered_language:d.language,discovered_region:d.region,discovered_country_code:country?.code??null,discovered_country_name:country?.name??null,metadata:{extractor:"instagram-invite-v4"}};
   const{data:source,error:sourceError}=await admin.from("discovery_sources").upsert(seed,{onConflict:"normalized_url"}).select("id").single();
   if(sourceError)return{status:"failed",error:sourceError.message};
-  const{data:dupe}=await admin.from("communities").select("id,health_status").eq("status","published").ilike("invite_url",d.normalizedUrl).maybeSingle();
-  if(dupe){await admin.from("discovery_sources").update({community_id:dupe.id,extraction_status:"duplicate",health_status:dupe.health_status??"unknown"}).eq("id",source.id);return{status:"duplicate",communityId:dupe.id};}
   const preview=await resolveRenderedCommunityPreview(d.normalizedUrl);
   const explicitInactive=preview.status==="inactive";
   const signal=preview.status==="healthy"&&Boolean(preview.name||preview.memberCount!==null||preview.imageUrl);
   const health=explicitInactive?"inactive":signal?"healthy":"needs_recheck";
-  if(explicitInactive){await admin.from("discovery_sources").update({extraction_status:"rejected",health_status:"inactive",health_checked_at:new Date().toISOString(),health_error:"Explicit inactive/invalid invite evidence."}).eq("id",source.id);return{status:"inactive"};}
-  const name=safeName(preview.name??d.name,`${d.category??"Instagram"} Group Chat`);
+  if(explicitInactive){
+    await admin.from("discovery_sources").update({extraction_status:"rejected",health_status:"inactive",health_checked_at:new Date().toISOString(),health_error:"Explicit inactive/invalid invite evidence."}).eq("id",source.id);
+    return{status:"inactive"};
+  }
+  const name=safeName(preview.name??d.name,(d.category??"Instagram")+" Group Chat");
   const slug=await uniqueSlug(admin,name);
+  const hasSourceDescription=Boolean(d.description?.trim());
   const description=safeDescription(d.description??d.title,sourceUrl);
-  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,country_code:country?.code??null,country_name:country?.name??null,member_count:preview.memberCount??null,status:"published",join_enabled:signal,verification_status:"unverified",health_status:health,health_last_checked_at:new Date().toISOString(),health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:preview.memberCount??null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:country?.code==="IN"?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[]};
-  const{data:community,error}=await admin.from("communities").insert(insert).select("id").single();
+  const status=hasSourceDescription?"published":"pending";
+  const now=new Date().toISOString();
+  const insert={name,slug,platform:"instagram",invite_url:d.normalizedUrl,description,language:d.language,region:d.region,country_code:country?.code??null,country_name:country?.name??null,member_count:signal?preview.memberCount??null:null,status,published_at:status==="published"?now:null,join_enabled:signal&&status==="published",verification_status:"unverified",health_status:health,health_last_checked_at:now,health_failure_count:signal?0:1,auto_monitor_enabled:true,standalone_inventory:true,last_remote_name:preview.name??null,last_remote_member_count:signal?preview.memberCount??null:null,last_health_error:signal?null:"Instagram invite could not be conclusively verified.",source_url:sourceUrl,platform_scope:country?.code==="IN"?"india":"global",claim_status:"unclaimed",needs_manual_review:true,quality_version:0,quality_issues:[],link_status:signal?"working":"unknown",activity_level:"unknown",source_confidence:sourceType==="website"?80:sourceType==="reddit"?65:60,topic_confidence:d.category?75:null,description_is_generic:!hasSourceDescription};
+  const{data:community,error}=await admin.from("communities").insert(insert).select("id,status").single();
   if(error){await admin.from("discovery_sources").update({extraction_status:"failed",health_status:health,health_error:error.message}).eq("id",source.id);return{status:"failed",error:error.message};}
-  const cid=await categoryId(admin,d.category);if(cid)await admin.from("community_categories").insert({community_id:community.id,category_id:cid});
-  await admin.rpc("refresh_directory_quality",{p_limit:1});
+  const cid=await categoryId(admin,d.category);if(cid)await admin.from("community_categories").upsert({community_id:community.id,category_id:cid},{onConflict:"community_id,category_id"});
+  if(status==="published")await admin.rpc("refresh_directory_quality",{p_limit:1});
   const{data:quality}=await admin.from("communities").select("quality_score,quality_grade").eq("id",community.id).single();
   await admin.from("communities").update({needs_manual_review:quality?.quality_grade!=="good"}).eq("id",community.id);
-  await admin.from("discovery_sources").update({community_id:community.id,extraction_status:"published",health_status:health,health_checked_at:new Date().toISOString(),metadata:{extractor:"instagram-invite-v3",quality_score:quality?.quality_score??null,quality_grade:quality?.quality_grade??null,country_code:country?.code??null}}).eq("id",source.id);
-  return{status:"published",communityId:community.id,quality:quality?.quality_grade??null};
+  await admin.from("discovery_sources").update({community_id:community.id,extraction_status:status==="published"?"published":"processed",health_status:health,health_checked_at:now,metadata:{extractor:"instagram-invite-v4",quality_score:quality?.quality_score??null,quality_grade:quality?.quality_grade??null,country_code:country?.code??null}}).eq("id",source.id);
+  return{status:status==="published"?"published":"pending",communityId:community.id,quality:quality?.quality_grade??null};
 }
 
 export async function runInstagramDiscovery(limit=100){
