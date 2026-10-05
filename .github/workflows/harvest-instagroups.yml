@@ -16,117 +16,86 @@ jobs:
 
       - name: Fetch competitor public feed
         env:
-          HARVEST_PAGES: "12"
+          HARVEST_PAGES: "8"
           PAGE_SIZE: "250"
         run: |
           python - <<'PY'
-          import json, re, time
-          from concurrent.futures import ThreadPoolExecutor, as_completed
-          import requests
+          import json, os, re, subprocess, requests, time
 
-          session = requests.Session()
-          session.headers.update({
-              "User-Agent": "ChatScout-Research/1.0",
-              "Accept": "application/json,text/plain,*/*",
-          })
-
-          app = session.get(
-              "https://huggingface.co/spaces/frtarun/Instagroups/raw/main/static/app.js",
-              timeout=20,
-          )
+          APP_URL = "https://huggingface.co/spaces/frtarun/Instagroups/raw/main/static/app.js"
+          app = requests.get(APP_URL, timeout=20)
           app.raise_for_status()
+
           rest = re.search(r'SUPABASE_REST_URL\s*=\s*["\']([^"\']+)["\']', app.text)
           key = re.search(r'SUPABASE_ANON_KEY\s*=\s*["\']([^"\']+)["\']', app.text)
           if not rest or not key:
-              raise SystemExit("Could not locate competitor public API configuration")
-          rest_url, anon_key = rest.group(1), key.group(1)
+              raise SystemExit("Could not locate public competitor API config")
+
+          rest_url = rest.group(1).rstrip("/")
+          anon_key = key.group(1)
+          host = re.sub(r"^https?://", "", rest_url).split("/",1)[0]
+
+          dns = requests.get(
+              "https://dns.google/resolve",
+              params={"name": host, "type": "A"},
+              timeout=10,
+          )
+          dns.raise_for_status()
+          answers = [x["data"] for x in dns.json().get("Answer", []) if x.get("type") == 1]
+          if not answers:
+              raise SystemExit(f"No A records returned for {host}")
+
+          def fetch_page(offset):
+              params = (
+                  "select=id%2Cname%2Ctoken%2Ctype_id%2Ccategory%2Csource%2Cimage_url%2Cmembers_count"
+                  f"&order=id.desc&limit={int(os.environ['PAGE_SIZE'])}&offset={offset}&type_id=eq.0"
+              )
+              url = f"{rest_url}/groups?{params}"
+              ip = answers[offset // int(os.environ["PAGE_SIZE"]) % len(answers)]
+              cmd = [
+                  "curl","--silent","--show-error","--fail","--location",
+                  "--connect-timeout","10","--max-time","25",
+                  "--resolve",f"{host}:443:{ip}",
+                  "-H",f"apikey: {anon_key}",
+                  "-H",f"Authorization: Bearer {anon_key}",
+                  "-H","Accept: application/json",
+                  url,
+              ]
+              p = subprocess.run(cmd, capture_output=True, text=True)
+              if p.returncode != 0:
+                  raise RuntimeError(p.stderr.strip() or "curl failed")
+              return json.loads(p.stdout)
 
           rows = []
-          for page in range(int(__import__("os").environ["HARVEST_PAGES"])):
-              params = {
-                  "select": "id,name,token,type_id,category,source,image_url,members_count",
-                  "order": "id.desc",
-                  "limit": int(__import__("os").environ["PAGE_SIZE"]),
-                  "offset": page * int(__import__("os").environ["PAGE_SIZE"]),
-                  "type_id": "eq.0",
-              }
-              r = session.get(
-                  rest_url + "/groups",
-                  params=params,
-                  headers={"apikey": anon_key, "Authorization": f"Bearer {anon_key}"},
-                  timeout=20,
-              )
-              r.raise_for_status()
-              batch = r.json()
+          for page in range(int(os.environ["HARVEST_PAGES"])):
+              batch = fetch_page(page * int(os.environ["PAGE_SIZE"]))
               if not batch:
                   break
               rows.extend(batch)
               time.sleep(0.25)
 
-          def check(row):
-              token = str(row.get("token") or "").strip()
-              if not token or not re.fullmatch(r"[A-Za-z0-9_-]+", token):
-                  return None
-              invite = f"https://ig.me/j/{token}/"
-              result = {
-                  "id": row.get("id"),
-                  "name": (row.get("name") or "Instagram Group Chat").strip()[:100],
-                  "token": token,
-                  "category": row.get("category") or "General",
-                  "source": row.get("source") or "InstaGroups",
-                  "image_url": row.get("image_url") or None,
-                  "members_count": row.get("members_count") or None,
-                  "invite_url": invite,
-                  "link_status": "unknown",
-                  "final_url": None,
-                  "http_status": None,
-              }
-              try:
-                  resp = session.get(invite, allow_redirects=True, timeout=8)
-                  result["http_status"] = resp.status_code
-                  result["final_url"] = resp.url
-                  host = (resp.url or "").lower()
-                  if 200 <= resp.status_code < 400 and (
-                      "instagram.com" in host or "ig.me" in host
-                  ):
-                      result["link_status"] = "working"
-                  elif 300 <= resp.status_code < 400:
-                      result["link_status"] = "redirected"
-                  elif resp.status_code in (404,410):
-                      result["link_status"] = "expired"
-                  elif resp.status_code in (401,403):
-                      result["link_status"] = "blocked"
-              except Exception:
-                  result["link_status"] = "unknown"
-              return result
-
           dedup = {}
-          for row in rows:
-              token = str(row.get("token") or "").strip()
-              if token:
-                  dedup[token] = row
+          for r in rows:
+              token = str(r.get("token") or "").strip()
+              if re.fullmatch(r"[A-Za-z0-9_-]+", token):
+                  dedup[token] = r
 
-          checked = []
-          with ThreadPoolExecutor(max_workers=24) as pool:
-              futures = [pool.submit(check, row) for row in dedup.values()]
-              for f in as_completed(futures):
-                  item = f.result()
-                  if item:
-                      checked.append(item)
-
-          checked.sort(key=lambda x: (x["link_status"] != "working", x["id"] if x["id"] is not None else 0))
           payload = {
               "source": "InstaGroups public frontend/public REST feed",
               "generated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
               "source_rows": len(rows),
               "unique_tokens": len(dedup),
-              "checked_rows": len(checked),
-              "rows": checked,
+              "rows": list(dedup.values()),
           }
+
+          os.makedirs("data", exist_ok=True)
           with open("data/instagroups-public-export.json", "w", encoding="utf-8") as f:
               json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
-          print(json.dumps({k: payload[k] for k in ("source_rows","unique_tokens","checked_rows")}))
 
+          print(json.dumps({
+              "source_rows": payload["source_rows"],
+              "unique_tokens": payload["unique_tokens"]
+          }))
           PY
 
       - name: Commit harvested export
