@@ -59,8 +59,8 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
                 <Link className="hero-action" href="/for-admins">For Community Owners <Icon name="arrow" size={14} /></Link>
               </div>
               <div className="launch-owner-flow" aria-label="Live community count">
-                <strong>{compactCount(publishedCount)} communities</strong>
-                <span>listed on ChatScout across 4 platforms</span>
+                <strong>{compactCount(publishedCount)} quality-checked communities</strong>
+                <span>currently discoverable across 4 platforms</span>
                 <Link href="/search">Browse all <Icon name="arrow" size={13} /></Link>
               </div>
               <div className="neon-popular"><span>Explore:</span>{topics.map((topic) => <Link href={"/search?q=" + encodeURIComponent(topic)} key={topic}>{topic}</Link>)}</div>
@@ -84,9 +84,9 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
           </section>
 
           <section className="launch-trust-strip" aria-label="Trust and freshness signals">
-            <div className="launch-trust-item"><span className="launch-signal verified"><Icon name="check" size={12} /> Verified</span><p>Verification is shown separately from invite availability.</p></div>
-            <div className="launch-trust-item"><span className="launch-signal active"><Icon name="bolt" size={12} /> Active</span><p>Active means the invite was recently checked and reachable.</p></div>
-            <div className="launch-trust-item"><span className="launch-signal fresh"><Icon name="spark" size={12} /> Fresh</span><p>Fresh shows how recently the community was listed.</p></div>
+            <div className="launch-trust-item"><span className="launch-signal verified"><Icon name="check" size={12} /> Community reviewed</span><p>Community review is separate from invite-link availability.</p></div>
+            <div className="launch-trust-item"><span className="launch-signal active"><Icon name="bolt" size={12} /> Invite checked</span><p>This means the invite was checked and reachable; it does not prove chat activity.</p></div>
+            <div className="launch-trust-item"><span className="launch-signal fresh"><Icon name="spark" size={12} /> Recently added</span><p>This shows listing age, not recent chat activity.</p></div>
           </section>
 
           <Reveal>
@@ -98,8 +98,8 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
 
           <Reveal>
             <section className="launch-section">
-              <div className="launch-section-head"><div><p className="eyebrow">MULTI-PLATFORM DISCOVERY</p><h2>One place. <span>Every community.</span></h2><p>Browse live communities from Instagram, WhatsApp, Telegram and Discord with the same discovery experience.</p></div></div>
-              <div className="launch-platforms">{platforms.map(([label, value, icon]) => <Link key={value} className={"launch-platform-card launch-platform-" + value + " live"} href={"/search?platform=" + value}><Icon name={icon} size={22} /><strong>{label}</strong><span>Browse live communities <Icon name="arrow" size={13} /></span></Link>)}</div>
+              <div className="launch-section-head"><div><p className="eyebrow">MULTI-PLATFORM DISCOVERY</p><h2>One place. <span>Every community.</span></h2><p>Browse quality-checked communities from Instagram, WhatsApp, Telegram and Discord with the same discovery experience.</p></div></div>
+              <div className="launch-platforms">{platforms.map(([label, value, icon]) => <Link key={value} className={"launch-platform-card launch-platform-" + value + " live"} href={"/search?platform=" + value}><Icon name={icon} size={22} /><strong>{label}</strong><span>Browse quality-checked listings <Icon name="arrow" size={13} /></span></Link>)}</div>
             </section>
           </Reveal>
 
