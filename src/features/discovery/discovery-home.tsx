@@ -79,7 +79,7 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
           </section>
 
           <section className="neon-section">
-            <div className="neon-section-head"><h2><Icon name="spark" />Freshly Added</h2><Link href="/new">View all <Icon name="arrow" size={14} /></Link></div>
+            <div className="neon-section-head"><h2><Icon name="spark" />Recently Added</h2><Link href="/new">View all <Icon name="arrow" size={14} /></Link></div>
             {newCommunities.length ? <CommunityGrid communities={newCommunities} /> : <EmptyCards message={message} />}
           </section>
 
@@ -128,7 +128,7 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
         <aside className="neon-rail">
           <Reveal>
             <section className="newly-card">
-              <div className="neon-section-head"><h2>Quick discovery</h2><Link href="/new">New communities <Icon name="arrow" size={14} /></Link></div>
+              <div className="neon-section-head"><h2>Quick discovery</h2><Link href="/new">Recently added <Icon name="arrow" size={14} /></Link></div>
               {newCommunities.slice(0, 2).length ? <CommunityGrid communities={newCommunities.slice(0, 2)} compact /> : <EmptyCards message="New communities will appear here." />}
             </section>
           </Reveal>
