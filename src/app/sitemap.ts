@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createServerSupabaseClient();
     const [{ data: categories }, { data: communities }] = await Promise.all([
       supabase.from("categories").select("id,slug,updated_at").eq("is_active", true),
-      supabase.from("communities").select("id,slug,updated_at,platform").eq("status", "published").eq("quality_grade", "good").limit(5000),
+      supabase.from("communities").select("id,slug,updated_at,platform").eq("status", "published").eq("quality_grade", "good").eq("health_status", "healthy").eq("join_enabled", true).limit(5000),
     ]);
     const ids = (communities ?? []).map((community) => community.id);
     const { data: links } = ids.length
