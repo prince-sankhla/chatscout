@@ -108,7 +108,8 @@ grant execute on function public.start_campaign_deliverable(uuid,uuid) to servic
 grant execute on function public.start_campaign_participation(uuid) to service_role;
 grant execute on function public.submit_campaign_deliverable_record(uuid,uuid,text,text,numeric,text) to service_role;
 
-revoke execute on function public.is_campaign_link_admin(uuid) from anon;
+revoke all on function public.is_campaign_link_admin(uuid) from public, anon, authenticated;
+grant execute on function public.is_campaign_link_admin(uuid) to authenticated, service_role;
 
 -- Reduce the privilege surface of internal SECURITY DEFINER routines.
 revoke all on function public.enrich_community_external_images(integer) from public, anon, authenticated;
