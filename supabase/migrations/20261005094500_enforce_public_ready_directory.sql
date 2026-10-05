@@ -96,7 +96,7 @@ grant execute on function public.current_user_owns_community(uuid) to service_ro
 grant execute on function public.find_campaign_matches(uuid,integer) to service_role;
 grant execute on function public.get_admin_audience_pack_memberships(uuid) to service_role;
 grant execute on function public.invite_campaign_communities(uuid,uuid[]) to service_role;
-grant execute on function public.payment_eligibility(uuid) to service_role;
+grant execute on function public.payment_eligibility(uuid,uuid) to service_role;
 grant execute on function public.recompute_audience_packs() to service_role;
 grant execute on function public.refresh_campaign_matches(uuid,integer) to service_role;
 grant execute on function public.respond_to_campaign_invitation(uuid,uuid,text) to service_role;
