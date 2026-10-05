@@ -235,7 +235,7 @@ export async function searchPublishedCommunitiesByIntent(
   });
   if (conditions.length) query = query.or(conditions.join(","));
 
-  const { data, error } = await query.order("published_at", { ascending: false, nullsFirst: false }).limit(240);
+  const { data, error } = await query.order("published_at", { ascending: false, nullsFirst: false }).limit(1000);
   if (error) return { data: [], total: 0, intent: parsed };
 
   const rows = (data ?? []) as CommunityRow[];
