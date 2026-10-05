@@ -20,10 +20,10 @@ export function CommunityCard({ community, compact = false }: { community: Commu
     <Link className={`community-art art-${community.accent}`} href={`/community/${community.slug}`} aria-label={`View ${community.name}`}>
       {community.imageUrl ? <img className="community-image" src={community.imageUrl} alt="" /> : <><span className="art-orbit" /><span className="art-copy">{community.initials.split("\n").map((line) => <span key={line}>{line}</span>)}</span></>}
       <span className="community-status-overlay" aria-label="Community status">
-        {healthStatus === "healthy" && <span className="community-status-pill community-active-pill"><span className="community-active-dot" aria-hidden="true" />Active</span>}
+        {healthStatus === "healthy" && <span className="community-status-pill community-active-pill" title="Invite link checked and reachable; this does not prove recent chat activity"><span className="community-active-dot" aria-hidden="true" />Invite checked</span>}
         {healthStatus === "needs_recheck" && <span className="community-status-pill">Needs check</span>}
-        {healthStatus === "inactive" && <span className="community-status-pill">Inactive</span>}
-        {verification === "verified" && <span className="community-status-pill community-verified-pill"><Icon name="check" size={12} />Verified</span>}
+        {healthStatus === "inactive" && <span className="community-status-pill">Unavailable</span>}
+        {verification === "verified" && <span className="community-status-pill community-verified-pill"><Icon name="check" size={12} />Community reviewed</span>}
       </span>
       <span className={`community-platform-pill community-platform-${platform}`} title={platformMeta.label} aria-label={`${platformMeta.label} community`}><Icon name={platformMeta.icon} size={13} />{platformMeta.label}</span>
     </Link>
