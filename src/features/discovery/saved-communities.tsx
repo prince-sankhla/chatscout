@@ -12,7 +12,7 @@ function subscribeToSavedCommunities(onStoreChange: () => void) {
 }
 
 function getSavedCommunitySnapshot() {
-  return localStorage.getItem(savedKey) ?? "[]";
+  try { return localStorage.getItem(savedKey) ?? "[]"; } catch { return "[]"; }
 }
 
 function getServerSnapshot() {
