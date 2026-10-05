@@ -6,6 +6,8 @@ export async function getPublishedCommunityCount(): Promise<number> {
   const { count } = await supabase
     .from("communities")
     .select("id", { count: "exact", head: true })
-    .eq("status", "published");
+    .eq("status", "published")
+    .eq("quality_grade", "good")
+    .neq("health_status", "inactive");
   return count ?? 0;
 }
