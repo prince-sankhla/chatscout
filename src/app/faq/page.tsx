@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell } from "@/components/layout/page-shell";
 import { Icon } from "@/components/ui/icon";
+import styles from "./faq.module.css";
 
 export const metadata: Metadata = {
   title: "FAQ | ChatScout",
@@ -103,7 +104,7 @@ function FaqItem({
     <details className="faq-item" open={defaultOpen}>
       <summary>
         <span>{question}</span>
-        <Icon name="plus" size={17} aria-hidden="true" />
+        <span className={styles.toggle} aria-hidden="true">+</span>
       </summary>
       <div className="faq-answer">
         <p>{answer}</p>
@@ -115,12 +116,12 @@ function FaqItem({
 export default function FaqPage() {
   return (
     <PageShell>
-      <main className="page-content faq-page">
+      <main className={"page-content " + styles.page}>
         <Link href="/" className="back-link">
           ← Back to discovery
         </Link>
 
-        <section className="faq-hero">
+        <section className={styles.hero}>
           <div>
             <p className="eyebrow">CHATSCOUT FAQ</p>
             <h1>Everything about how ChatScout works.</h1>
@@ -129,7 +130,7 @@ export default function FaqPage() {
               owner and business products being built around the directory.
             </p>
           </div>
-          <div className="faq-hero-mark" aria-hidden="true">
+          <div className={styles.heroMark} aria-hidden="true">
             <Icon name="spark" size={30} />
             <span>DISCOVER</span>
             <span>LIST</span>
@@ -137,27 +138,27 @@ export default function FaqPage() {
           </div>
         </section>
 
-        <section className="faq-section" aria-labelledby="faq-directory">
-          <div className="faq-section-heading">
+        <section className={styles.section} aria-labelledby="faq-directory">
+          <div className={styles.sectionHeading}>
             <div>
               <p className="eyebrow">PUBLIC DIRECTORY</p>
               <h2 id="faq-directory">For people looking for communities</h2>
             </div>
           </div>
-          <div className="faq-list">
+          <div className={styles.list}>
             {faqs.slice(0, 5).map((faq, index) => (
               <FaqItem key={faq.question} {...faq} defaultOpen={index === 0} />
             ))}
           </div>
         </section>
 
-        <section className="faq-section" aria-labelledby="faq-owners">
+        <section className={styles.section} aria-labelledby="faq-owners">
           <div className="faq-section-heading">
             <div>
               <p className="eyebrow">COMMUNITY OWNERS</p>
               <h2 id="faq-owners">For people who run a community</h2>
             </div>
-            <Link className="faq-section-link" href="/for-admins">
+            <Link className={styles.sectionLink} href="/for-admins">
               Owner tools <Icon name="arrow" size={14} />
             </Link>
           </div>
@@ -168,7 +169,7 @@ export default function FaqPage() {
           </div>
         </section>
 
-        <section className="faq-section" aria-labelledby="faq-business">
+        <section className={styles.section} aria-labelledby="faq-business">
           <div className="faq-section-heading">
             <div>
               <p className="eyebrow">BRANDS & BUSINESSES</p>
@@ -182,7 +183,7 @@ export default function FaqPage() {
           </div>
         </section>
 
-        <section className="faq-bottom-cta">
+        <section className={styles.bottomCta}>
           <div>
             <p className="eyebrow">READY TO USE CHATSCOUT?</p>
             <h2>Find your next community.</h2>
