@@ -87,4 +87,44 @@ grant execute on function public.set_campaign_match_allocated_budget() to servic
 revoke all on function public.sync_community_platform_from_submission() from public, anon, authenticated;
 grant execute on function public.sync_community_platform_from_submission() to service_role;
 
+
+-- Keep quality invalidation and joinability atomic when listing metadata changes.
+create or replace function public.invalidate_directory_quality()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $
+begin
+  if tg_op='INSERT' or
+     new.name is distinct from old.name or
+     new.description is distinct from old.description or
+     new.language is distinct from old.language or
+     new.region is distinct from old.region or
+     new.member_count is distinct from old.member_count or
+     new.platform is distinct from old.platform or
+     new.invite_url is distinct from old.invite_url or
+     new.verification_status is distinct from old.verification_status or
+     new.health_status is distinct from old.health_status or
+     new.image_path is distinct from old.image_path or
+     new.external_image_url is distinct from old.external_image_url
+  then
+    new.quality_score := null;
+    new.quality_grade := null;
+    new.quality_issues := '[]'::jsonb;
+    new.quality_checked_at := null;
+    new.quality_version := 0;
+    new.data_quality_checked_at := null;
+    new.needs_manual_review := true;
+    new.quality_reviewed_at := null;
+    new.quality_reviewed_by := null;
+    new.quality_review_note := null;
+    if new.status = 'published' then
+      new.join_enabled := false;
+    end if;
+  end if;
+  return new;
+end;
+$;
+
 alter function public.generate_campaign_short_code() set search_path = public, extensions;
