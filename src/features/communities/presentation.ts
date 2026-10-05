@@ -16,9 +16,9 @@ const fallbackGradientByAccent:Record<Community["accent"],[string,string]>={
 };
 function accentForSlug(slug:string):Community["accent"]{const value=[...slug].reduce((total,character)=>total+character.charCodeAt(0),0);return accents[value%accents.length];}
 function initialsForName(name:string){return name.split(/\s+/).filter(Boolean).slice(0,2).join("\n").toUpperCase();}
-function membersLabel(memberCount:number|null){return memberCount===null?"Member count unavailable":`${memberCount.toLocaleString("en-IN")} members`;}
-function listingAgeLabel(createdAt:string){const days=Math.max(0,Math.floor((Date.now()-new Date(createdAt).getTime())/86400000));if(days<1)return "Listed today";if(days<30)return `Listed ${days}d ago`;const months=Math.floor(days/30.44);if(months<12)return `Listed ${months}mo ago`;return `Listed ${Math.floor(months/12)}y ago`;}
-function healthLabel(community:CommunityRow){if(community.health_status==="healthy")return "Active · checked recently";if(community.health_status==="needs_recheck")return "Needs recheck";if(community.health_status==="inactive"||community.verification_status==="broken")return "Inactive";if(community.join_enabled===false)return "Join temporarily unavailable";return "Health not checked";}
+function membersLabel(memberCount:number|null){return memberCount===null?"Members unavailable":`${memberCount.toLocaleString("en-IN")} members`;}
+function listingAgeLabel(createdAt:string){const days=Math.max(0,Math.floor((Date.now()-new Date(createdAt).getTime())/86400000));if(days<1)return "Added today";if(days<30)return `Added ${days}d ago`;const months=Math.floor(days/30.44);if(months<12)return `Added ${months}mo ago`;return `Added ${Math.floor(months/12)}y ago`;}
+function healthLabel(community:CommunityRow){if(community.health_status==="healthy")return "Invite link checked recently";if(community.health_status==="needs_recheck")return "Invite link needs recheck";if(community.health_status==="inactive"||community.verification_status==="broken")return "Invite link unavailable";if(community.join_enabled===false)return "Join temporarily unavailable";return "Invite link not checked";}
 
 const getCommunityCategories=unstable_cache(
   async(communityId:string)=>{
@@ -70,7 +70,7 @@ export async function toCommunityPresentation(community:CommunityRow):Promise<Co
     try{
       const preview=await resolveFallbackPreview(community.invite_url);
       imageUrl=imageUrl??preview.imageUrl;
-      memberCountOverride=preview.memberCount;
+      memberCountOverride=preview.status==="healthy"?preview.memberCount:null;
     }catch{memberCountOverride=null;}
   }
   return buildPresentation(community,categoryNames,imageUrl,memberCountOverride);
@@ -113,7 +113,7 @@ export async function toCommunityPresentations(communities:CommunityRow[]):Promi
       try{
         const preview=await resolveFallbackPreview(community.invite_url);
         imageUrl=imageUrl??preview.imageUrl;
-        memberCountOverride=preview.memberCount;
+        memberCountOverride=preview.status==="healthy"?preview.memberCount:null;
       }catch{memberCountOverride=null;}
     }
     return buildPresentation(community,categoryNamesByCommunity.get(community.id)??[],imageUrl,memberCountOverride);
