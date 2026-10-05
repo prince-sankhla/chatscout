@@ -65,6 +65,51 @@ end
 where c.status = 'published'
   and c.topic_confidence is null;
 
+-- Keep server-only campaign RPCs off the authenticated REST/RPC surface.
+revoke execute on function public.approve_campaign_application(uuid) from authenticated;
+revoke execute on function public.audience_pack_match(uuid,jsonb) from authenticated;
+revoke execute on function public.campaign_match_score(uuid,uuid) from authenticated;
+revoke execute on function public.change_campaign_status(uuid,text) from authenticated;
+revoke execute on function public.community_is_pack_eligible(uuid) from authenticated;
+revoke execute on function public.current_user_owns_community(uuid) from authenticated;
+revoke execute on function public.find_campaign_matches(uuid,integer) from authenticated;
+revoke execute on function public.get_admin_audience_pack_memberships(uuid) from authenticated;
+revoke execute on function public.invite_campaign_communities(uuid,uuid[]) from authenticated;
+revoke execute on function public.payment_eligibility(uuid,uuid) from authenticated;
+revoke execute on function public.recompute_audience_packs() from authenticated;
+revoke execute on function public.refresh_campaign_matches(uuid,integer) from authenticated;
+revoke execute on function public.respond_to_campaign_invitation(uuid,uuid,text) from authenticated;
+revoke execute on function public.review_campaign_application(uuid,text) from authenticated;
+revoke execute on function public.review_campaign_submission(uuid,text,text) from authenticated;
+revoke execute on function public.set_audience_pack_opt_out(uuid,uuid,boolean) from authenticated;
+revoke execute on function public.set_payout_enabled(uuid,boolean) from authenticated;
+revoke execute on function public.start_campaign_deliverable(uuid,uuid) from authenticated;
+revoke execute on function public.start_campaign_participation(uuid) from authenticated;
+revoke execute on function public.submit_campaign_deliverable_record(uuid,uuid,text,text,numeric,text) from authenticated;
+
+grant execute on function public.approve_campaign_application(uuid) to service_role;
+grant execute on function public.audience_pack_match(uuid,jsonb) to service_role;
+grant execute on function public.campaign_match_score(uuid,uuid) to service_role;
+grant execute on function public.change_campaign_status(uuid,text) to service_role;
+grant execute on function public.community_is_pack_eligible(uuid) to service_role;
+grant execute on function public.current_user_owns_community(uuid) to service_role;
+grant execute on function public.find_campaign_matches(uuid,integer) to service_role;
+grant execute on function public.get_admin_audience_pack_memberships(uuid) to service_role;
+grant execute on function public.invite_campaign_communities(uuid,uuid[]) to service_role;
+grant execute on function public.payment_eligibility(uuid) to service_role;
+grant execute on function public.recompute_audience_packs() to service_role;
+grant execute on function public.refresh_campaign_matches(uuid,integer) to service_role;
+grant execute on function public.respond_to_campaign_invitation(uuid,uuid,text) to service_role;
+grant execute on function public.review_campaign_application(uuid,text) to service_role;
+grant execute on function public.review_campaign_submission(uuid,text,text) to service_role;
+grant execute on function public.set_audience_pack_opt_out(uuid,uuid,boolean) to service_role;
+grant execute on function public.set_payout_enabled(uuid,boolean) to service_role;
+grant execute on function public.start_campaign_deliverable(uuid,uuid) to service_role;
+grant execute on function public.start_campaign_participation(uuid) to service_role;
+grant execute on function public.submit_campaign_deliverable_record(uuid,uuid,text,text,numeric,text) to service_role;
+
+revoke execute on function public.is_campaign_link_admin(uuid) from anon;
+
 -- Reduce the privilege surface of internal SECURITY DEFINER routines.
 revoke all on function public.enrich_community_external_images(integer) from public, anon, authenticated;
 grant execute on function public.enrich_community_external_images(integer) to service_role;
