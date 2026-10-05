@@ -10,6 +10,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     .select("id, invite_url, join_enabled")
     .eq("slug", slug)
     .eq("status", "published")
+    .eq("quality_grade", "good")
+    .eq("health_status", "healthy")
+    .eq("join_enabled", true)
     .maybeSingle();
   if (!community || community.join_enabled === false) return NextResponse.redirect(new URL(`/community/${slug}`, request.url), 302);
   await recordJoinClick(community.id);
