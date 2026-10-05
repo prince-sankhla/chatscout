@@ -9,6 +9,7 @@ import { getPublishedCommunities, getTrendingPublishedCommunities, searchPublish
 import { getPublishedCommunityCount } from "@/features/communities/published-count";
 import { getHomepageFeaturedCommunities } from "@/features/communities/homepage-featured";
 import { toCommunityPresentations } from "@/features/communities/presentation";
+import styles from "./discovery-home.module.css";
 
 const topics = ["AI & ML", "Coding", "JEE", "NEET", "Anime", "Gaming", "Startups", "Memes", "Fitness", "Jaipur"] as const;
 const categoryIcons = [["spark", "AI & ML"], ["code", "Coding"], ["graduation", "Education"], ["gamepad", "Gaming"], ["heart", "Anime & Manga"], ["briefcase", "Startups & Jobs"], ["music", "Music"], ["flame", "Memes & Humor"], ["map", "Local Communities"]] as const;
@@ -112,6 +113,20 @@ export async function DiscoveryHome({ searchTerm = "" }: { searchTerm?: string }
                 <article className="launch-how-card"><span className="launch-how-number">3</span><h3>Join</h3><p>Open the community page and continue to the original platform through its invite link.</p></article>
               </div>
               <div className="launch-owner-flow"><strong>For community owners:</strong> List → Review → Get discovered → <Link href="/for-admins">Maintain your listing</Link></div>
+            </section>
+          </Reveal>
+
+          <Reveal>
+            <section className={styles.section}>
+              <div className={styles.copy}>
+                <p className="eyebrow">CHATSCOUT FAQ</p>
+                <h2>How the <span>community network</span> works.</h2>
+                <p>ChatScout is more than a directory: people discover communities, owners maintain their listings, and businesses can reach relevant audiences through the network.</p>
+              </div>
+              <div className={styles.actions}>
+                <Link className="hero-action" href="/faq">Read the FAQ <Icon name="arrow" size={14} /></Link>
+                <Link className={styles.miniLink} href="/for-admins">For community owners</Link>
+              </div>
             </section>
           </Reveal>
 

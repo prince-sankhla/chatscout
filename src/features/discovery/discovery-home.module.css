@@ -1,0 +1,6 @@
+.section{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;padding:25px 27px;border:1px solid #303a58;border-radius:17px;background:linear-gradient(120deg,rgba(112,69,232,.1),rgba(239,61,145,.055))}
+.copy h2{margin:4px 0 8px;font-size:25px;line-height:1.1;letter-spacing:-.045em}
+.copy p:not(.eyebrow){max-width:650px;margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.actions{display:flex;align-items:center;gap:14px;justify-content:flex-end}
+.miniLink{color:var(--purple);font-size:11px;font-weight:750;white-space:nowrap}
+@media(max-width:720px){.section{grid-template-columns:1fr;padding:21px 19px}.copy h2{font-size:22px}.actions{justify-content:flex-start;flex-wrap:wrap}.miniLink{white-space:normal}}
