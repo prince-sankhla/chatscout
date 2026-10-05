@@ -69,7 +69,7 @@ export async function searchPublishedCommunityPage(
   const safePage = Math.max(1, Math.floor(page));
   const safeSize = Math.max(12, Math.min(60, Math.floor(pageSize)));
   const pattern = `%${q}%`;
-  let query = supabase.from("communities").select("*", { count: "exact" }).eq("status", "published").or(`name.ilike.${pattern},description.ilike.${pattern}`);
+  let query = supabase.from("communities").select("*", { count: "exact" }).eq("status", "published").eq("quality_grade", "good").eq("join_enabled", true).eq("health_status", "healthy").or(`name.ilike.${pattern},description.ilike.${pattern}`);
   if (filters.platform) query = query.eq("platform", filters.platform);
   if (filters.language && filters.language !== "any") query = query.ilike("language", `%${filters.language.trim()}%`);
   if (filters.region && filters.region !== "any") query = query.ilike("region", `%${filters.region.trim()}%`);
