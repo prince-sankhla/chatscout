@@ -12,6 +12,11 @@ type Props = {
   healthLabel: string;
   healthStatus: "unknown" | "healthy" | "needs_recheck" | "inactive";
   lastVerifiedAt: string | null;
+  linkStatus?: string;
+  activityLevel?: string;
+  activityConfidence?: number | null;
+  topicConfidence?: number | null;
+  sourceConfidence?: number | null;
 };
 
 function label(value: string | null, fallback: string) {
@@ -30,6 +35,11 @@ export function CommunityDetailTrust({
   healthLabel,
   healthStatus,
   lastVerifiedAt,
+  linkStatus = "unknown",
+  activityLevel = "unknown",
+  activityConfidence = null,
+  topicConfidence = null,
+  sourceConfidence = null,
 }: Props) {
   const verified = verificationStatus === "verified";
   const verifiedDate = lastVerifiedAt
@@ -66,14 +76,18 @@ export function CommunityDetailTrust({
           <div className={styles.cardHead}>
             <div>
               <span className={styles.kicker}>TRUST SIGNAL</span>
-              <h2>Join with confidence</h2>
+              <h2>Trust signals</h2>
             </div>
             <span className={verified ? styles.statusGood : styles.statusNeutral}>
-              {verified ? "Verified" : verificationStatus.replace("_", " ")}
+              {verified ? "Community reviewed" : "Not manually verified"}
             </span>
           </div>
           <p className={styles.lead}>{healthLabel}</p>
           <div className={styles.checks}>
+            <span>{linkStatus === "working" ? <i>✓</i> : <i>!</i>} Invite status: {linkStatus.replace("_", " ")}</span>
+            <span><i>i</i> Community activity: {activityLevel === "unknown" ? "Unknown (ChatScout does not directly observe chat activity)" : activityLevel}{activityConfidence !== null ? ` · ${activityConfidence}% confidence` : ""}</span>
+            {topicConfidence !== null && <span><i>i</i> Topic match confidence: {topicConfidence}%</span>}
+            {sourceConfidence !== null && <span><i>i</i> Source confidence: {sourceConfidence}%</span>}
             {healthStatus === "healthy" && <span><i>✓</i> Invite link checked recently</span>}
             {healthStatus === "needs_recheck" && <span><i>!</i> Invite link needs a recheck</span>}
             {healthStatus === "inactive" && <span><i>!</i> Invite link is currently unavailable</span>}
@@ -88,7 +102,7 @@ export function CommunityDetailTrust({
           <h2>Know what to expect</h2>
           <dl className={styles.details}>
             <div><dt>Who can join</dt><dd>{label(eligibility, "Not specified by the community")}</dd></div>
-            <div><dt>Community rules</dt><dd>{label(rules, "No rules provided")}</dd></div>
+            <div><dt>Community-provided rules</dt><dd>{label(rules, "No rules provided by the community")}</dd></div>
             <div><dt>Topics & restrictions</dt><dd>{label(restrictions, "None specified")}</dd></div>
           </dl>
         </article>
