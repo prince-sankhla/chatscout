@@ -118,3 +118,8 @@ GRANT EXECUTE ON FUNCTION public.is_campaign_brand(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_campaign_admin(uuid,uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_campaign_link_admin(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.is_community_admin(uuid) TO service_role;
+
+
+-- Click attribution updates analytics and is now server-only.
+REVOKE ALL ON FUNCTION public.record_campaign_link_click(uuid,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_campaign_link_click(uuid,text) TO service_role;
