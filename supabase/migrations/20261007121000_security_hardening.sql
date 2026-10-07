@@ -1,44 +1,9 @@
 -- Security hardening for campaign authorization helpers and campaign admin policies.
-REVOKE ALL ON FUNCTION public.is_campaign_admin(uuid,uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.is_campaign_admin(uuid,uuid) TO authenticated;
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC;
+GRANT USAGE ON SCHEMA private TO authenticated, service_role;
 
-REVOKE ALL ON FUNCTION public.is_campaign_brand(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.is_campaign_brand(uuid) TO authenticated;
-
-REVOKE ALL ON FUNCTION public.is_campaign_link_admin(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.is_campaign_link_admin(uuid) TO authenticated;
-
-REVOKE ALL ON FUNCTION public.is_community_admin(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.is_community_admin(uuid) TO authenticated;
-
-DROP POLICY IF EXISTS campaign_conversions_admin_select ON public.campaign_conversions;
-CREATE POLICY campaign_conversions_admin_select
-  ON public.campaign_conversions FOR SELECT TO authenticated
-  USING (public.is_campaign_link_admin(campaign_link_id));
-
-DROP POLICY IF EXISTS campaign_conversions_brand_select ON public.campaign_conversions;
-CREATE POLICY campaign_conversions_brand_select
-  ON public.campaign_conversions FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.campaign_links l
-      WHERE l.id = campaign_conversions.campaign_link_id
-        AND public.is_campaign_brand(l.campaign_id)
-    )
-  );
-
-DROP POLICY IF EXISTS campaign_links_admin_select ON public.campaign_links;
-CREATE POLICY campaign_links_admin_select
-  ON public.campaign_links FOR SELECT TO authenticated
-  USING (public.is_campaign_link_admin(id));
-
-DROP POLICY IF EXISTS campaign_links_brand_select ON public.campaign_links;
-CREATE POLICY campaign_links_brand_select
-  ON public.campaign_links FOR SELECT TO authenticated
-  USING (public.is_campaign_brand(campaign_id));
-
--- SECURITY DEFINER helpers use an empty search_path and fully qualified objects.
-CREATE OR REPLACE FUNCTION public.is_campaign_brand(p_campaign_id uuid)
+CREATE OR REPLACE FUNCTION private.is_campaign_brand(p_campaign_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
 AS $$
   select exists (
@@ -47,7 +12,7 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_campaign_admin(p_campaign_id uuid,p_community_id uuid)
+CREATE OR REPLACE FUNCTION private.is_campaign_admin(p_campaign_id uuid,p_community_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
 AS $$
   select exists (
@@ -56,7 +21,7 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_campaign_link_admin(p_link_id uuid)
+CREATE OR REPLACE FUNCTION private.is_campaign_link_admin(p_link_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
 AS $$
   select exists (
@@ -67,7 +32,7 @@ AS $$
   );
 $$;
 
-CREATE OR REPLACE FUNCTION public.is_community_admin(p_community_id uuid)
+CREATE OR REPLACE FUNCTION private.is_community_admin(p_community_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
 AS $$
   select exists (
@@ -79,3 +44,77 @@ AS $$
     where c.id=p_community_id and c.owner_user_id=(select auth.uid())
   );
 $$;
+
+REVOKE ALL ON FUNCTION private.is_campaign_brand(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.is_campaign_admin(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.is_campaign_link_admin(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.is_community_admin(uuid) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION private.is_campaign_brand(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_campaign_admin(uuid,uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_campaign_link_admin(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.is_community_admin(uuid) TO authenticated, service_role;
+
+DROP POLICY IF EXISTS campaign_apps_admin_insert ON public.campaign_applications;
+CREATE POLICY campaign_apps_admin_insert ON public.campaign_applications FOR INSERT TO authenticated
+WITH CHECK (admin_user_id=(select auth.uid()) AND private.is_campaign_admin(campaign_id,community_id));
+
+DROP POLICY IF EXISTS campaign_apps_brand_select ON public.campaign_applications;
+CREATE POLICY campaign_apps_brand_select ON public.campaign_applications FOR SELECT TO authenticated
+USING (private.is_campaign_brand(campaign_id));
+
+DROP POLICY IF EXISTS campaign_apps_brand_update ON public.campaign_applications;
+CREATE POLICY campaign_apps_brand_update ON public.campaign_applications FOR UPDATE TO authenticated
+USING (private.is_campaign_brand(campaign_id)) WITH CHECK (private.is_campaign_brand(campaign_id));
+
+DROP POLICY IF EXISTS ccm_admin_select ON public.campaign_community_matches;
+CREATE POLICY ccm_admin_select ON public.campaign_community_matches FOR SELECT TO authenticated
+USING (private.is_campaign_admin(campaign_id,community_id));
+
+DROP POLICY IF EXISTS ccm_admin_update ON public.campaign_community_matches;
+CREATE POLICY ccm_admin_update ON public.campaign_community_matches FOR UPDATE TO authenticated
+USING (private.is_campaign_admin(campaign_id,community_id))
+WITH CHECK (private.is_campaign_admin(campaign_id,community_id));
+
+DROP POLICY IF EXISTS campaign_conversions_admin_select ON public.campaign_conversions;
+CREATE POLICY campaign_conversions_admin_select ON public.campaign_conversions FOR SELECT TO authenticated
+USING (private.is_campaign_link_admin(campaign_link_id));
+
+DROP POLICY IF EXISTS campaign_conversions_brand_select ON public.campaign_conversions;
+CREATE POLICY campaign_conversions_brand_select ON public.campaign_conversions FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.campaign_links l
+    WHERE l.id=campaign_conversions.campaign_link_id
+      AND private.is_campaign_brand(l.campaign_id)
+  )
+);
+
+DROP POLICY IF EXISTS campaign_links_admin_select ON public.campaign_links;
+CREATE POLICY campaign_links_admin_select ON public.campaign_links FOR SELECT TO authenticated
+USING (private.is_campaign_link_admin(id));
+
+DROP POLICY IF EXISTS campaign_links_brand_select ON public.campaign_links;
+CREATE POLICY campaign_links_brand_select ON public.campaign_links FOR SELECT TO authenticated
+USING (private.is_campaign_brand(campaign_id));
+
+DROP POLICY IF EXISTS participation_brand_select ON public.campaign_participations;
+CREATE POLICY participation_brand_select ON public.campaign_participations FOR SELECT TO authenticated
+USING (private.is_campaign_brand(campaign_id));
+
+DROP POLICY IF EXISTS "community owners can read their own communities" ON public.communities;
+CREATE POLICY "community owners can read their own communities" ON public.communities FOR SELECT TO authenticated
+USING (status='published'::text OR private.is_community_admin(id));
+
+DROP POLICY IF EXISTS community_monetization_owner_read ON public.community_monetization;
+CREATE POLICY community_monetization_owner_read ON public.community_monetization FOR SELECT TO authenticated
+USING (private.is_community_admin(community_id));
+
+REVOKE ALL ON FUNCTION public.is_campaign_brand(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_campaign_admin(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_campaign_link_admin(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.is_community_admin(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_campaign_brand(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_campaign_admin(uuid,uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_campaign_link_admin(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_community_admin(uuid) TO service_role;
